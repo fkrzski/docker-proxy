@@ -1,0 +1,37 @@
+# Certificates (Keep keys private!)
+certs/*
+!certs/.gitkeep
+
+# IDE - JetBrains (PhpStorm, IntelliJ, etc.)
+.idea/
+*.iml
+*.iws
+
+# IDE - VS Code
+.vscode/
+*.code-workspace
+
+# IDE - Eclipse
+.metadata/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+.project
+.classpath
+
+# OS - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# OS - Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
