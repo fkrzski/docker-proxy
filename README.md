@@ -2,7 +2,7 @@
 
 A fully configurable, local reverse proxy for Docker development. This project eliminates port conflicts (e.g., "Port 8080 is already in use") and provides trusted SSL certificates for local domains.
 
-It runs a single Traefik container handling routing for all local projects via custom domains (e.g., `https://my-app.localhost`).
+It runs a single Traefik container handling routing for all local projects via custom domains (e.g., `https://my-app.localhost`). Additionally, it includes optional, pre-configured services like Redis, MySQL, and phpMyAdmin.
 
 ## Prerequisites
 
@@ -51,6 +51,34 @@ If you prefer to configure the environment manually or are using a non-Debian di
     ```
 
 Access the Traefik dashboard at [https://traefik.localhost](https://traefik.localhost).
+
+## Configuration
+
+The project is configured via a `.env` file, which is automatically created from `.env.example` during setup.
+
+### Enabling/Disabling Services
+
+You can control which services start by editing the `COMPOSE_PROFILES` variable in your `.env` file.
+
+```dotenv
+# Enable all services (default)
+COMPOSE_PROFILES=redis,mysql,pma
+
+# Enable only Redis
+COMPOSE_PROFILES=redis
+
+# Enable only Traefik (leave empty or remove other profiles)
+COMPOSE_PROFILES=
+```
+
+**Available Profiles:**
+- `redis`: Starts a Redis container.
+- `mysql`: Starts a MySQL 8.0 container.
+- `pma`: Starts phpMyAdmin (available at [https://pma.localhost](https://pma.localhost)).
+
+### Database Configuration
+
+- **Root Password:** Controlled by `MYSQL_ROOT_PASSWORD` in `.env`. Default is `root`.
 
 ## Usage in Projects
 

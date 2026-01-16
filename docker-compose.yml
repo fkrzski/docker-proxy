@@ -30,6 +30,51 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
 
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    profiles:
+      - redis
+    networks:
+      - traefik-proxy
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    profiles:
+      - mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - traefik-proxy
+    command: --default-authentication-plugin=mysql_native_password
+
+  pma:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma
+    restart: unless-stopped
+    profiles:
+      - pma
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pma.rule=Host(`pma.localhost`)"
+      - "traefik.http.routers.pma.tls=true"
+
+volumes:
+  mysql_data:
+
 networks:
   traefik-proxy:
     external: true

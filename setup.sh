@@ -76,7 +76,7 @@ if [ ! -f certs/local-cert.pem ] || [ ! -f certs/local-key.pem ];
     log_info "Generating SSL certificates for localhost domain..."
     mkcert -key-file certs/local-key.pem \
       -cert-file certs/local-cert.pem \
-      "localhost" "*.localhost" "traefik.localhost" "127.0.0.1" "::1"
+      "localhost" "*.localhost" "traefik.localhost" "pma.localhost" "127.0.0.1" "::1"
     
     # Set permissions
     chmod 644 certs/local-cert.pem certs/local-key.pem
@@ -85,7 +85,16 @@ else
     log_info "Certificates already exist. Skipping generation."
 fi
 
-# 5. Start Docker Compose
+# 5. Configure Environment
+if [ ! -f .env ]; then
+    log_info "Creating .env configuration file from template..."
+    cp .env.example .env
+    log_success "Created .env file with default settings."
+else
+    log_info ".env configuration file already exists."
+fi
+
+# 6. Start Docker Compose
 log_info "Starting Traefik proxy container..."
 docker compose up -d
 

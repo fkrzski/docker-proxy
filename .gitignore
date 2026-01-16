@@ -35,3 +35,6 @@ local.properties
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Other files
+.env
