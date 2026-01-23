@@ -28,20 +28,113 @@ log_error() {
 
 log_info "Starting Local Docker Proxy setup..."
 
-# Pre-check for apt (Debian/Ubuntu based systems)
-if ! command -v apt &> /dev/null;
-    then
-    log_warn "This script relies on 'apt' for dependency management."
-    log_warn "Please ensure you have equivalent dependencies installed manually if you are not on a Debian-based system."
+# Detect package manager and set appropriate commands
+detect_package_manager() {
+    if command -v apt &> /dev/null; then
+        PKG_MANAGER="apt"
+        NSS_PACKAGE="libnss3-tools"
+        INSTALL_CMD="sudo apt update && sudo apt install -y"
+        CHECK_CMD="dpkg -s"
+    elif command -v dnf &> /dev/null; then
+        PKG_MANAGER="dnf"
+        NSS_PACKAGE="nss-tools"
+        INSTALL_CMD="sudo dnf install -y"
+        CHECK_CMD="rpm -q"
+    elif command -v yum &> /dev/null; then
+        PKG_MANAGER="yum"
+        NSS_PACKAGE="nss-tools"
+        INSTALL_CMD="sudo yum install -y"
+        CHECK_CMD="rpm -q"
+    elif command -v pacman &> /dev/null; then
+        PKG_MANAGER="pacman"
+        NSS_PACKAGE="nss"
+        INSTALL_CMD="sudo pacman -S --noconfirm"
+        CHECK_CMD="pacman -Q"
+    elif command -v brew &> /dev/null; then
+        PKG_MANAGER="brew"
+        NSS_PACKAGE="nss"
+        INSTALL_CMD="brew install"
+        CHECK_CMD="brew list"
+    elif command -v apk &> /dev/null; then
+        PKG_MANAGER="apk"
+        NSS_PACKAGE="nss-tools"
+        INSTALL_CMD="sudo apk add"
+        CHECK_CMD="apk info -e"
+    else
+        PKG_MANAGER="unknown"
+        NSS_PACKAGE=""
+        INSTALL_CMD=""
+        CHECK_CMD=""
+    fi
+}
+
+# Check if NSS tools are installed
+check_nss_installed() {
+    case "$PKG_MANAGER" in
+        apt) dpkg -s libnss3-tools >/dev/null 2>&1 ;;
+        dnf|yum) rpm -q nss-tools >/dev/null 2>&1 ;;
+        pacman) pacman -Q nss >/dev/null 2>&1 ;;
+        brew) brew list nss >/dev/null 2>&1 ;;
+        apk) apk info -e nss-tools >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Install NSS tools using detected package manager
+install_nss_tools() {
+    case "$PKG_MANAGER" in
+        apt)
+            log_info "Installing dependencies (libnss3-tools, curl) via apt..."
+            sudo apt update && sudo apt install -y libnss3-tools curl
+            ;;
+        dnf)
+            log_info "Installing dependencies (nss-tools, curl) via dnf..."
+            sudo dnf install -y nss-tools curl
+            ;;
+        yum)
+            log_info "Installing dependencies (nss-tools, curl) via yum..."
+            sudo yum install -y nss-tools curl
+            ;;
+        pacman)
+            log_info "Installing dependencies (nss, curl) via pacman..."
+            sudo pacman -S --noconfirm nss curl
+            ;;
+        brew)
+            log_info "Installing dependencies (nss, curl) via brew..."
+            brew install nss curl
+            ;;
+        apk)
+            log_info "Installing dependencies (nss-tools, curl) via apk..."
+            sudo apk add nss-tools curl
+            ;;
+        *)
+            log_error "Unsupported package manager. Please install the following manually:"
+            log_warn "  - NSS tools (libnss3-tools on Debian/Ubuntu, nss-tools on Fedora/RHEL, nss on Arch)"
+            log_warn "  - curl"
+            log_warn "Then re-run this script."
+            exit 1
+            ;;
+    esac
+}
+
+# Detect package manager
+detect_package_manager
+log_info "Detected package manager: ${PKG_MANAGER:-unknown}"
+
+if [ "$PKG_MANAGER" = "unknown" ]; then
+    log_warn "Could not detect a supported package manager (apt, dnf, yum, pacman, brew, apk)."
+    log_warn "Please ensure you have the following dependencies installed manually:"
+    log_warn "  - NSS tools (libnss3-tools on Debian/Ubuntu, nss-tools on Fedora/RHEL, nss on Arch)"
+    log_warn "  - curl"
+    log_warn "  - mkcert (https://github.com/FiloSottile/mkcert)"
+    log_warn "Continuing with setup - some steps may fail if dependencies are missing."
 fi
 
-# 1. Install libnss3-tools
-if ! dpkg -s libnss3-tools >/dev/null 2>&1;
-    then
-    log_info "Installing dependencies (libnss3-tools)..."
-    sudo apt update && sudo apt install -y libnss3-tools curl
+# 1. Install NSS tools (required for mkcert)
+if ! check_nss_installed; then
+    install_nss_tools
 else
-    log_info "Dependency 'libnss3-tools' is already installed."
+    log_info "NSS tools dependency is already installed."
 fi
 
 # 2. Install mkcert
