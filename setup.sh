@@ -99,4 +99,4 @@ log_info "Starting Traefik proxy container..."
 docker compose up -d
 
 log_success "Setup complete."
-echo -e "Dashboard available at: https://traefik.localhost"
+echo -e "Dashboard available at: https://traefik.docker.localhost"
