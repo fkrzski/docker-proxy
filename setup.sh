@@ -63,7 +63,7 @@ fi
 # 3. Create network
 if ! docker network inspect traefik-proxy &> /dev/null;
     then
-    log_info "Creating Docker network 'traefik-proxy' நான்க..."
+    log_info "Creating Docker network 'traefik-proxy'..."
     docker network create traefik-proxy
 else
     log_info "Docker network 'traefik-proxy' already exists."
