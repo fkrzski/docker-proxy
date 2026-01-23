@@ -50,7 +50,7 @@ If you prefer to configure the environment manually or are using a non-Debian di
     docker compose up -d
     ```
 
-Access the Traefik dashboard at [https://traefik.docker.localhost](https://traefik.localhost).
+Access the Traefik dashboard at [https://traefik.docker.localhost](https://traefik.docker.localhost).
 
 ## Configuration
 
@@ -74,7 +74,7 @@ COMPOSE_PROFILES=
 **Available Profiles:**
 - `redis`: Starts a Redis container.
 - `mysql`: Starts a MySQL 8.0 container.
-- `pma`: Starts phpMyAdmin (available at [https://pma.docker.localhost](https://pma.localhost)).
+- `pma`: Starts phpMyAdmin (available at [https://pma.docker.localhost](https://pma.docker.localhost)).
 
 ### Database Configuration
 
