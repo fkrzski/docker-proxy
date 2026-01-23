@@ -38,3 +38,6 @@ Desktop.ini
 
 # Other files
 .env
+
+# Auto Claude data directory
+.auto-claude/

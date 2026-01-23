@@ -76,7 +76,7 @@ if [ ! -f certs/local-cert.pem ] || [ ! -f certs/local-key.pem ];
     log_info "Generating SSL certificates for localhost domain..."
     mkcert -key-file certs/local-key.pem \
       -cert-file certs/local-cert.pem \
-      "localhost" "*.localhost" "traefik.localhost" "pma.localhost" "127.0.0.1" "::1"
+      "localhost" "*.docker.localhost" "127.0.0.1" "::1"
     
     # Set permissions
     chmod 644 certs/local-cert.pem certs/local-key.pem
