@@ -45,6 +45,12 @@ services:
       - redis
     networks:
       - traefik-proxy
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mysql:
     image: mysql:8.0
