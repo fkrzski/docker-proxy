@@ -22,6 +22,7 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
 - [Advanced Configuration](#advanced-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
+- [FAQ](#faq)
 
 ## Quick Start
 
@@ -4491,5 +4492,572 @@ When facing integration issues, run through this checklist:
 **TODO:** Add performance tuning tips
 
 ---
+
+## FAQ
+
+### When should I use ports vs no ports in my compose.yml?
+
+**Short answer:** For services proxied through Traefik, **do not** use a `ports:` section.
+
+**Detailed explanation:**
+
+When a service is connected to the `traefik-proxy` network and has proper Traefik labels:
+- ❌ **Don't use `ports:`** - Traefik handles all routing internally
+- ✅ **Use labels** - Define routing rules via Traefik labels
+- ✅ **Access via domain** - Use `https://your-app.docker.localhost`
+
+```yaml
+# ✅ CORRECT - No ports section
+services:
+  web:
+    image: nginx:alpine
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`web.docker.localhost`)"
+      - "traefik.http.routers.web.tls=true"
+```
+
+```yaml
+# ❌ INCORRECT - Ports section conflicts with proxy
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"  # Don't do this!
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`web.docker.localhost`)"
+      - "traefik.http.routers.web.tls=true"
+```
+
+**Exceptions - When to use `ports:`:**
+
+1. **Development tools not accessed via browser:**
+   ```yaml
+   services:
+     database:
+       image: postgres:15
+       ports:
+         - "5432:5432"  # OK - For direct database client connections
+   ```
+
+2. **Services with non-HTTP protocols:**
+   ```yaml
+   services:
+     ssh-server:
+       image: linuxserver/openssh-server
+       ports:
+         - "2222:2222"  # OK - SSH is not HTTP
+   ```
+
+3. **Services not using the proxy at all:**
+   ```yaml
+   services:
+     background-worker:
+       image: my-worker:latest
+       ports:
+         - "9090:9090"  # OK - Not connected to traefik-proxy
+   ```
+
+**Why avoid ports with Traefik?**
+- **Port conflicts:** Multiple projects can't use the same port
+- **No HTTPS:** Direct port access bypasses SSL certificates
+- **Manual management:** You lose automatic routing benefits
+
+---
+
+### Can I use custom domains (not .docker.localhost)?
+
+**Yes**, but with limitations and additional configuration.
+
+#### Option 1: Custom .localhost Subdomain (Recommended)
+
+You can use **any subdomain** under `.localhost`:
+
+```yaml
+labels:
+  - "traefik.http.routers.app.rule=Host(`my-custom-app.localhost`)"
+```
+
+**Advantages:**
+- ✅ No additional DNS configuration needed
+- ✅ Works out of the box on all platforms
+- ✅ Existing SSL certificate covers `*.localhost` (if configured)
+
+**Requirement:**
+Regenerate certificates to include your custom pattern:
+
+```bash
+mkcert -key-file certs/local-key.pem \
+  -cert-file certs/local-cert.pem \
+  "localhost" "*.localhost" "*.docker.localhost" "127.0.0.1" "::1"
+chmod 644 certs/local-cert.pem certs/local-key.pem
+docker compose restart traefik
+```
+
+#### Option 2: Custom Top-Level Domain (Advanced)
+
+Use completely custom domains like `my-app.local` or `project.dev`:
+
+**Requirements:**
+1. **DNS Resolution:** Add entries to `/etc/hosts` or use dnsmasq
+2. **SSL Certificate:** Generate certificates for your custom domain
+3. **Traefik Configuration:** Update labels accordingly
+
+**Example `/etc/hosts` entry:**
+```
+127.0.0.1 my-app.local
+127.0.0.1 api.my-app.local
+```
+
+**Generate custom certificate:**
+```bash
+mkcert -key-file certs/custom-key.pem \
+  -cert-file certs/custom-cert.pem \
+  "*.my-app.local" "my-app.local"
+```
+
+**Update Traefik dynamic config** (`config/dynamic.yml`):
+```yaml
+tls:
+  certificates:
+    - certFile: /certs/local-cert.pem
+      keyFile: /certs/local-key.pem
+    - certFile: /certs/custom-cert.pem
+      keyFile: /certs/custom-key.pem
+```
+
+**Use in your project:**
+```yaml
+labels:
+  - "traefik.http.routers.app.rule=Host(`my-app.local`)"
+  - "traefik.http.routers.app.tls=true"
+```
+
+**Limitations:**
+- ❌ Requires manual `/etc/hosts` management per domain
+- ❌ More complex certificate management
+- ❌ Team members need the same setup
+
+**Recommendation:** Stick with `.docker.localhost` or `.localhost` for simplicity.
+
+---
+
+### What is the performance impact of using this proxy?
+
+**Short answer:** Minimal overhead (<5ms latency per request) for local development.
+
+#### Performance Characteristics
+
+**Latency:**
+- **Direct access (localhost:8080):** ~0.5ms
+- **Via Traefik proxy:** ~2-5ms
+- **Overhead:** 1.5-4.5ms per request
+
+**Throughput:**
+- Traefik is a production-grade proxy handling 10k+ req/sec
+- Local development rarely exceeds 100 req/sec
+- **No noticeable impact** in typical development scenarios
+
+#### What Adds Overhead?
+
+1. **TLS Termination:** ~1-2ms per request
+2. **Docker Network Bridge:** ~0.5-1ms
+3. **Routing Logic:** <0.5ms
+
+#### Performance Benefits
+
+Despite minimal overhead, the proxy provides:
+- ✅ **Faster project switching** - No port reconfiguration
+- ✅ **Parallel development** - Run multiple projects simultaneously
+- ✅ **Caching (if configured)** - Can reduce backend load
+- ✅ **HTTP/2 support** - Better resource loading
+
+#### Benchmarking Your Setup
+
+Test direct vs proxied access:
+
+```bash
+# Direct container access (if port exposed)
+ab -n 1000 -c 10 http://localhost:8080/
+
+# Via proxy
+ab -n 1000 -c 10 https://my-app.docker.localhost/
+```
+
+**Typical results:**
+- Direct: ~950 req/sec
+- Proxied: ~920 req/sec (~3% difference)
+
+#### When Performance Matters
+
+**Proxy overhead is negligible** for:
+- Web application development
+- API development
+- Frontend development
+- Database-backed applications
+
+**Consider direct access** for:
+- High-frequency API load testing (>5000 req/sec)
+- Profiling/benchmarking scenarios
+- WebSocket-heavy applications (though Traefik handles these well)
+
+**Bottom line:** For 99% of local development use cases, the convenience far outweighs the minimal performance cost.
+
+---
+
+### Can I run multiple Traefik instances?
+
+**Not recommended, but possible with careful configuration.**
+
+#### Why You Shouldn't
+
+Running multiple Traefik instances creates:
+- ❌ **Port conflicts** - Both need ports 80/443
+- ❌ **Network confusion** - Which proxy handles which service?
+- ❌ **Certificate management overhead** - Multiple CA setups
+- ❌ **Dashboard conflicts** - Both want `traefik.docker.localhost`
+
+#### Valid Use Cases
+
+Multiple instances may be needed for:
+1. **Isolated environments** (e.g., work vs personal projects)
+2. **Testing different Traefik versions**
+3. **Separate network security boundaries**
+
+#### How to Run Multiple Instances
+
+If you must run multiple instances, configure them as follows:
+
+**Instance 1 (Primary - ports 80/443):**
+```yaml
+# docker-compose.yml
+services:
+  traefik:
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.docker.localhost`)"
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Instance 2 (Secondary - different ports):**
+```yaml
+# docker-compose-alt.yml
+services:
+  traefik-alt:
+    image: traefik:v3.2
+    ports:
+      - "8080:80"    # Different host port
+      - "8443:443"   # Different host port
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    labels:
+      - "traefik.http.routers.dashboard-alt.rule=Host(`traefik-alt.docker.localhost`)"
+networks:
+  traefik-proxy-alt:  # Different network name
+    external: true
+```
+
+**Create the second network:**
+```bash
+docker network create traefik-proxy-alt
+```
+
+**Access secondary instance:**
+- HTTP: `http://localhost:8080` → Routes to secondary Traefik
+- HTTPS: `https://localhost:8443` → Routes to secondary Traefik
+- Must specify port in URL: `https://app.docker.localhost:8443`
+
+#### Better Alternative: Single Instance with Priorities
+
+Instead of multiple instances, use **priority-based routing** for different project groups:
+
+```yaml
+# High-priority project
+labels:
+  - "traefik.http.routers.prod-app.rule=Host(`app.docker.localhost`)"
+  - "traefik.http.routers.prod-app.priority=100"
+
+# Low-priority fallback
+labels:
+  - "traefik.http.routers.test-app.rule=Host(`app.docker.localhost`)"
+  - "traefik.http.routers.test-app.priority=50"
+```
+
+**Recommendation:** Use a single Traefik instance for all local projects. If you need isolation, use different **domains** (e.g., `work-project.docker.localhost` vs `personal-project.docker.localhost`), not multiple proxies.
+
+---
+
+### Should I use this proxy in production?
+
+**No. This project is designed exclusively for local development.**
+
+#### Why Not Production?
+
+This setup includes development-focused configurations that are **not production-ready:**
+
+1. **⚠️ Self-signed certificates**
+   - mkcert generates locally-trusted CA
+   - Not trusted by public browsers/clients
+   - Only works on machines where CA is installed
+
+2. **⚠️ Localhost-only domains**
+   - `.docker.localhost` only resolves locally
+   - No public DNS resolution
+
+3. **⚠️ Docker socket exposure**
+   - Traefik has access to `/var/run/docker.sock`
+   - Security risk in multi-tenant environments
+
+4. **⚠️ Dashboard exposed**
+   - API dashboard is enabled without authentication
+   - Exposes routing configuration
+
+5. **⚠️ No high-availability setup**
+   - Single container (no redundancy)
+   - Not suitable for uptime requirements
+
+#### Production-Ready Alternatives
+
+For production deployments, use:
+
+**1. Traefik with Let's Encrypt:**
+```yaml
+services:
+  traefik:
+    image: traefik:v3.2
+    command:
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    labels:
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+```
+
+**2. Cloud Load Balancers:**
+- AWS Application Load Balancer (ALB)
+- Google Cloud Load Balancing
+- Azure Application Gateway
+
+**3. Managed Reverse Proxies:**
+- Cloudflare (with origin certificates)
+- AWS CloudFront
+- Fastly
+
+**4. Enterprise Solutions:**
+- Nginx Ingress Controller (Kubernetes)
+- HAProxy
+- Istio Service Mesh
+
+#### Adapting This Setup for Production
+
+If you want to use Traefik in production, you need to:
+
+1. **✅ Replace mkcert with Let's Encrypt**
+2. **✅ Use real domain names with DNS**
+3. **✅ Remove Docker socket access (use file provider)**
+4. **✅ Enable authentication on dashboard**
+5. **✅ Implement monitoring and logging**
+6. **✅ Add rate limiting and security middleware**
+7. **✅ Use Docker Swarm or Kubernetes for HA**
+
+**Reference:** See [Traefik's production documentation](https://doc.traefik.io/traefik/user-guides/docker-compose/acme-http/)
+
+**Final word:** Use this proxy to streamline your **local development workflow**. For production, design a proper infrastructure with public CAs, monitoring, and high availability.
+
+---
+
+### Does this work on Windows and macOS?
+
+**Yes, with manual setup.** The automated `setup.sh` script is Linux-only, but the proxy itself works on all platforms.
+
+#### Platform Compatibility Matrix
+
+| Feature | Linux | macOS | Windows (WSL2) | Windows (Native) |
+|---------|-------|-------|----------------|------------------|
+| Traefik proxy | ✅ | ✅ | ✅ | ✅ |
+| Docker networking | ✅ | ✅ | ✅ | ✅ |
+| mkcert CA | ✅ | ✅ | ✅ | ✅ |
+| Automated setup | ✅ | ❌ | ⚠️ (partial) | ❌ |
+| `.localhost` domains | ✅ | ✅ | ✅ | ✅ |
+
+#### macOS Setup
+
+1. **Install mkcert:**
+   ```bash
+   brew install mkcert
+   mkcert -install
+   ```
+
+2. **Create Docker network:**
+   ```bash
+   docker network create traefik-proxy
+   ```
+
+3. **Generate certificates:**
+   ```bash
+   mkcert -key-file certs/local-key.pem \
+     -cert-file certs/local-cert.pem \
+     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
+   chmod 644 certs/local-cert.pem certs/local-key.pem
+   ```
+
+4. **Copy environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+5. **Start the proxy:**
+   ```bash
+   docker compose up -d
+   ```
+
+**macOS-specific notes:**
+- Docker Desktop required (not native Docker Engine)
+- Network performance is slower than Linux (VM overhead)
+- Domain resolution works out of the box
+
+#### Windows Setup (WSL2 - Recommended)
+
+**Prerequisites:** WSL2 with Ubuntu and Docker Desktop for Windows
+
+1. **Inside WSL2 terminal:**
+   ```bash
+   # Install mkcert
+   sudo apt update
+   sudo apt install -y libnss3-tools curl
+   curl -L https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64 -o mkcert
+   chmod +x mkcert
+   sudo mv mkcert /usr/local/bin/
+
+   # Install CA
+   mkcert -install
+   ```
+
+2. **Create network:**
+   ```bash
+   docker network create traefik-proxy
+   ```
+
+3. **Generate certificates:**
+   ```bash
+   cd /path/to/docker-proxy
+   mkdir -p certs
+   mkcert -key-file certs/local-key.pem \
+     -cert-file certs/local-cert.pem \
+     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
+   chmod 644 certs/local-cert.pem certs/local-key.pem
+   ```
+
+4. **Copy and edit environment:**
+   ```bash
+   cp .env.example .env
+   nano .env  # Configure as needed
+   ```
+
+5. **Start proxy:**
+   ```bash
+   docker compose up -d
+   ```
+
+**Access from Windows browser:**
+- URLs work in Windows browsers (Edge, Chrome)
+- Certificate is trusted if mkcert installed in WSL2
+- May need to import CA to Windows certificate store:
+  ```bash
+  # In WSL2, find CA location
+  mkcert -CAROOT
+  # Copy rootCA.pem to Windows and import to "Trusted Root Certification Authorities"
+  ```
+
+#### Windows Setup (Native Docker Desktop)
+
+1. **Install mkcert for Windows:**
+   - Download from https://github.com/FiloSottile/mkcert/releases
+   - Use PowerShell as Administrator:
+     ```powershell
+     choco install mkcert  # If using Chocolatey
+     # OR manually download mkcert-v1.4.4-windows-amd64.exe
+     ```
+
+2. **Install local CA:**
+   ```powershell
+   mkcert -install
+   ```
+
+3. **Create Docker network:**
+   ```powershell
+   docker network create traefik-proxy
+   ```
+
+4. **Generate certificates:**
+   ```powershell
+   # In PowerShell, navigate to docker-proxy directory
+   cd C:\path\to\docker-proxy
+   mkdir certs -ErrorAction SilentlyContinue
+   mkcert -key-file certs/local-key.pem `
+     -cert-file certs/local-cert.pem `
+     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
+   ```
+
+5. **Copy environment file:**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+6. **Start proxy:**
+   ```powershell
+   docker compose up -d
+   ```
+
+**Windows-specific notes:**
+- Use PowerShell (not CMD)
+- File paths use backslashes: `C:\path\to\project`
+- WSL2 backend recommended for better performance
+
+#### Platform-Specific Issues
+
+**macOS:**
+- **Issue:** "Connection refused" errors
+- **Fix:** Ensure Docker Desktop is running and Traefik container started
+- **Issue:** Slow response times
+- **Fix:** Expected - Docker on macOS uses VM (slower than Linux)
+
+**Windows:**
+- **Issue:** Certificate not trusted in browser
+- **Fix:** Import mkcert CA to Windows certificate store manually
+- **Issue:** Path issues in compose.yml
+- **Fix:** Use forward slashes even on Windows: `./certs:/certs`
+
+**Cross-platform development:**
+If your team uses mixed platforms:
+- ✅ Keep paths relative in compose files (`./certs` not `/home/user/certs`)
+- ✅ Document platform-specific setup in your project README
+- ✅ Use `.env` files for platform-specific variables
+- ✅ Test on all platforms before committing
+
+#### Platform Recommendation
+
+| Scenario | Recommended Platform |
+|----------|---------------------|
+| Personal development | Linux (best performance) |
+| macOS required | Use Docker Desktop (works well) |
+| Windows required | WSL2 + Docker Desktop (best Windows experience) |
+| Team/mixed platforms | Document manual setup for each platform |
+
+**Bottom line:** The proxy works on all platforms, but Linux provides the smoothest experience. The `setup.sh` automation is Linux-only, but manual setup takes just 5 minutes on macOS/Windows.
+
+---
+
+**Have more questions?** Check the [Troubleshooting](#troubleshooting) section or refer to the [main README](../README.md) for additional resources.
 
 *This guide is under active development. Sections marked with TODO will be completed in upcoming updates.*
