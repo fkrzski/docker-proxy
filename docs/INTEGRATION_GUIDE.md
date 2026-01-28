@@ -13,6 +13,12 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
   - [Python/Django Projects](#pythondjango-projects)
   - [Static Sites](#static-sites)
   - [Go Applications](#go-applications)
+- [Common Scenarios](#common-scenarios)
+  - [Multi-Service Project (Frontend + Backend)](#multi-service-project-frontend--backend)
+  - [Using Proxy-Provided MySQL and Redis](#using-proxy-provided-mysql-and-redis)
+  - [Custom Domain Patterns](#custom-domain-patterns)
+  - [Path-Based Routing](#path-based-routing)
+  - [Multiple Domains for One Service](#multiple-domains-for-one-service)
 - [Advanced Configuration](#advanced-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
@@ -2811,6 +2817,1223 @@ CMD ["./app"]
 ```
 
 **Result:** Production-ready image with full health checks in 15-20MB.
+
+## Common Scenarios
+
+This section covers real-world scenarios you'll encounter when building multi-service applications with the Docker Proxy. Each example demonstrates production-ready patterns for common architectural needs.
+
+### Multi-Service Project (Frontend + Backend)
+
+Most modern applications consist of multiple services working together. This scenario shows a React frontend communicating with an Express API backend, both exposed through the proxy.
+
+**Use case:** Single-page application with a REST API backend.
+
+**Architecture:**
+- Frontend: React app (port 3000)
+- Backend: Express API (port 4000)
+- Both services accessible via custom domains
+- Backend can optionally connect to proxy's MySQL/Redis
+
+**Directory structure:**
+```
+fullstack-app/
+├── compose.yml
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── (React app files)
+└── backend/
+    ├── Dockerfile
+    ├── package.json
+    └── (Express API files)
+```
+
+**compose.yml:**
+```yaml
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fullstack-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=https://api.myapp.docker.localhost
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-frontend.rule=Host(`myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-frontend.tls=true"
+      - "traefik.http.services.myapp-frontend.loadbalancer.server.port=3000"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fullstack-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=mysql://root:root@mysql:3306/myapp_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=https://myapp.docker.localhost
+    networks:
+      - traefik-proxy
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-backend.rule=Host(`api.myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-backend.tls=true"
+      - "traefik.http.services.myapp-backend.loadbalancer.server.port=4000"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true
+  app-network:
+    driver: bridge
+```
+
+**frontend/Dockerfile:**
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 3000
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**frontend/nginx.conf:**
+```nginx
+server {
+    listen 3000;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to backend (optional if using direct HTTPS)
+    location /api/ {
+        proxy_pass https://api.myapp.docker.localhost/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+**backend/Dockerfile:**
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 4000
+CMD ["node", "server.js"]
+```
+
+**backend/server.js (CORS configuration example):**
+```javascript
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+// CORS configuration for frontend
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'https://myapp.docker.localhost',
+  credentials: true
+}));
+
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// API routes
+app.get('/api/data', (req, res) => {
+  res.json({ message: 'Hello from backend!' });
+});
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
+```
+
+**Usage:**
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Access services
+# Frontend: https://myapp.docker.localhost
+# Backend API: https://api.myapp.docker.localhost
+```
+
+**Key points:**
+- **Separate domains**: Frontend and backend use different subdomains (cleaner separation)
+- **CORS configuration**: Backend allows requests from frontend domain
+- **Environment variables**: Frontend knows backend URL via `REACT_APP_API_URL`
+- **Network isolation**: Backend on private network for database access
+- **Custom ports**: Each service uses its own port, Traefik routes appropriately
+- **Health checks**: Both services have health endpoints for monitoring
+
+**Testing the setup:**
+```bash
+# Test frontend
+curl https://myapp.docker.localhost
+
+# Test backend API
+curl https://api.myapp.docker.localhost/api/data
+
+# Test from frontend container to backend
+docker exec fullstack-frontend wget -qO- https://api.myapp.docker.localhost/health
+```
+
+---
+
+### Using Proxy-Provided MySQL and Redis
+
+Instead of running separate database containers for each project, you can use the centralized MySQL and Redis services provided by the proxy. This approach saves resources and simplifies management.
+
+**Benefits:**
+- Single MySQL/Redis instance for all projects
+- Reduced memory usage (one container vs. many)
+- Centralized database management via phpMyAdmin
+- Consistent connection strings across projects
+
+**Prerequisites:**
+
+1. **Enable MySQL and Redis in the proxy:**
+
+   Edit the proxy's `.env` file:
+   ```bash
+   COMPOSE_PROFILES=redis,mysql,pma
+   MYSQL_ROOT_PASSWORD=root
+   ```
+
+   Restart the proxy:
+   ```bash
+   cd /path/to/docker-proxy
+   docker compose up -d
+   ```
+
+2. **Verify services are running:**
+   ```bash
+   docker ps | grep -E "mysql|redis"
+   ```
+
+   You should see `mysql`, `redis`, and `pma` containers running.
+
+**Scenario: Laravel application using proxy's MySQL and Redis**
+
+**compose.yml:**
+```yaml
+services:
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    environment:
+      # Database configuration (proxy's MySQL)
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=laravel_app
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+
+      # Cache configuration (proxy's Redis)
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=null
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel-app.rule=Host(`laravel-app.docker.localhost`)"
+      - "traefik.http.routers.laravel-app.tls=true"
+      - "traefik.http.services.laravel-app.loadbalancer.server.port=9000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: laravel-nginx
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - laravel
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel-nginx.rule=Host(`laravel-app.docker.localhost`)"
+      - "traefik.http.routers.laravel-nginx.tls=true"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Setup steps:**
+
+1. **Create the database:**
+
+   Use phpMyAdmin at `https://pma.docker.localhost` or CLI:
+   ```bash
+   docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE laravel_app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   ```
+
+2. **Start your application:**
+   ```bash
+   docker compose up -d
+   ```
+
+3. **Run migrations:**
+   ```bash
+   docker compose exec laravel php artisan migrate
+   ```
+
+4. **Test database connection:**
+   ```bash
+   docker compose exec laravel php artisan tinker
+   # In tinker:
+   DB::connection()->getPdo();
+   ```
+
+5. **Test Redis connection:**
+   ```bash
+   docker compose exec laravel php artisan tinker
+   # In tinker:
+   Redis::ping();
+   ```
+
+**Managing databases:**
+
+**View all databases:**
+```bash
+docker exec -it mysql mysql -uroot -proot -e "SHOW DATABASES;"
+```
+
+**Create a new database:**
+```bash
+docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE myapp_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+**Create a database user:**
+```bash
+docker exec -it mysql mysql -uroot -proot << EOF
+CREATE USER 'myapp'@'%' IDENTIFIED BY 'secret';
+GRANT ALL PRIVILEGES ON myapp_db.* TO 'myapp'@'%';
+FLUSH PRIVILEGES;
+EOF
+```
+
+**Backup a database:**
+```bash
+docker exec mysql mysqldump -uroot -proot laravel_app > backup.sql
+```
+
+**Restore a database:**
+```bash
+docker exec -i mysql mysql -uroot -proot laravel_app < backup.sql
+```
+
+**Redis operations:**
+
+**Test Redis connection:**
+```bash
+docker exec -it redis redis-cli ping
+```
+
+**View all keys:**
+```bash
+docker exec -it redis redis-cli KEYS '*'
+```
+
+**Clear all cache:**
+```bash
+docker exec -it redis redis-cli FLUSHDB
+```
+
+**Monitor Redis commands:**
+```bash
+docker exec -it redis redis-cli MONITOR
+```
+
+**Important notes:**
+
+1. **Network requirement**: Your services **must** be on the `traefik-proxy` network to access MySQL and Redis.
+
+2. **Connection strings**: Use container names as hostnames:
+   - MySQL: `mysql:3306`
+   - Redis: `redis:6379`
+
+3. **Security**: The default password is `root`. For production, change `MYSQL_ROOT_PASSWORD` in the proxy's `.env`.
+
+4. **Multiple projects**: All projects share the same MySQL/Redis instances. Use unique database names:
+   - Project A: `projecta_db`
+   - Project B: `projectb_db`
+   - Project C: `projectc_db`
+
+5. **phpMyAdmin access**: Manage all databases via `https://pma.docker.localhost` (login: `root` / `root`).
+
+6. **Data persistence**: MySQL data persists in the `mysql_data` volume. To reset:
+   ```bash
+   cd /path/to/docker-proxy
+   docker compose down -v  # WARNING: Deletes all databases!
+   docker compose up -d
+   ```
+
+**Example connection strings for different frameworks:**
+
+**Laravel (.env):**
+```env
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=laravel_app
+DB_USERNAME=root
+DB_PASSWORD=root
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+**Django (settings.py):**
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'django_app',
+        'USER': 'root',
+        'PASSWORD': 'root',
+        'HOST': 'mysql',
+        'PORT': '3306',
+    }
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://redis:6379/0',
+    }
+}
+```
+
+**Node.js (Express):**
+```javascript
+const mysql = require('mysql2');
+const redis = require('redis');
+
+// MySQL connection
+const db = mysql.createConnection({
+  host: 'mysql',
+  user: 'root',
+  password: 'root',
+  database: 'nodejs_app'
+});
+
+// Redis client
+const redisClient = redis.createClient({
+  host: 'redis',
+  port: 6379
+});
+```
+
+**FastAPI (Python):**
+```python
+# Database URL
+DATABASE_URL = "mysql://root:root@mysql:3306/fastapi_app"
+
+# Redis client
+import redis
+redis_client = redis.Redis(host='redis', port=6379, db=0)
+```
+
+---
+
+### Custom Domain Patterns
+
+While `*.docker.localhost` is convenient for local development, you may want to use custom domain patterns for various reasons: better mimicking production URLs, organizing projects by client, or testing specific domain behaviors.
+
+**Supported patterns:**
+- Standard subdomain: `myapp.docker.localhost`
+- Multi-level subdomain: `admin.myapp.docker.localhost`
+- Client-specific domains: `client1.docker.localhost`, `client2.docker.localhost`
+- Environment-based: `dev.myapp.docker.localhost`, `staging.myapp.docker.localhost`
+
+**Important**: All custom domains must end with `.docker.localhost` to match the wildcard SSL certificate (`*.docker.localhost`).
+
+**Scenario 1: Multi-environment setup**
+
+Run dev, staging, and production-like environments locally with different domains.
+
+**compose.yml:**
+```yaml
+services:
+  app-dev:
+    image: myapp:latest
+    container_name: myapp-dev
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=mysql://root:root@mysql:3306/myapp_dev
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-dev.rule=Host(`dev.myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-dev.tls=true"
+      - "traefik.http.services.myapp-dev.loadbalancer.server.port=8000"
+
+  app-staging:
+    image: myapp:latest
+    container_name: myapp-staging
+    restart: unless-stopped
+    environment:
+      - APP_ENV=staging
+      - DATABASE_URL=mysql://root:root@mysql:3306/myapp_staging
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-staging.rule=Host(`staging.myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-staging.tls=true"
+      - "traefik.http.services.myapp-staging.loadbalancer.server.port=8000"
+
+  app-prod:
+    image: myapp:latest
+    container_name: myapp-prod
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=mysql://root:root@mysql:3306/myapp_prod
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-prod.rule=Host(`prod.myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-prod.tls=true"
+      - "traefik.http.services.myapp-prod.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- Development: `https://dev.myapp.docker.localhost`
+- Staging: `https://staging.myapp.docker.localhost`
+- Production-like: `https://prod.myapp.docker.localhost`
+
+**Scenario 2: Multi-tenant application**
+
+Host multiple client instances with separate domains.
+
+**compose.yml:**
+```yaml
+services:
+  app-client1:
+    image: saas-app:latest
+    container_name: saas-client1
+    restart: unless-stopped
+    environment:
+      - TENANT_ID=client1
+      - DATABASE_URL=mysql://root:root@mysql:3306/client1_db
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.client1.rule=Host(`client1.docker.localhost`)"
+      - "traefik.http.routers.client1.tls=true"
+      - "traefik.http.services.client1.loadbalancer.server.port=80"
+
+  app-client2:
+    image: saas-app:latest
+    container_name: saas-client2
+    restart: unless-stopped
+    environment:
+      - TENANT_ID=client2
+      - DATABASE_URL=mysql://root:root@mysql:3306/client2_db
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.client2.rule=Host(`client2.docker.localhost`)"
+      - "traefik.http.routers.client2.tls=true"
+      - "traefik.http.services.client2.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- Client 1: `https://client1.docker.localhost`
+- Client 2: `https://client2.docker.localhost`
+
+**Scenario 3: Application with admin panel**
+
+Separate public and admin interfaces on different subdomains.
+
+**compose.yml:**
+```yaml
+services:
+  public-app:
+    image: myapp:latest
+    container_name: myapp-public
+    restart: unless-stopped
+    command: ["npm", "run", "start:public"]
+    environment:
+      - APP_MODE=public
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-public.rule=Host(`myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-public.tls=true"
+      - "traefik.http.services.myapp-public.loadbalancer.server.port=3000"
+
+  admin-app:
+    image: myapp:latest
+    container_name: myapp-admin
+    restart: unless-stopped
+    command: ["npm", "run", "start:admin"]
+    environment:
+      - APP_MODE=admin
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myapp-admin.rule=Host(`admin.myapp.docker.localhost`)"
+      - "traefik.http.routers.myapp-admin.tls=true"
+      - "traefik.http.services.myapp-admin.loadbalancer.server.port=3001"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- Public site: `https://myapp.docker.localhost`
+- Admin panel: `https://admin.myapp.docker.localhost`
+
+**Domain naming best practices:**
+
+1. **Keep it organized**:
+   - Project-based: `projectname.docker.localhost`
+   - Feature-based: `api.projectname.docker.localhost`, `admin.projectname.docker.localhost`
+   - Environment-based: `dev.projectname.docker.localhost`
+
+2. **Use consistent patterns**:
+   ```
+   Good:
+   - myapp.docker.localhost
+   - api.myapp.docker.localhost
+   - admin.myapp.docker.localhost
+
+   Avoid mixing:
+   - myapp.docker.localhost
+   - myapp-api.docker.localhost
+   - adminmyapp.docker.localhost
+   ```
+
+3. **Router naming convention**: Match router names to domains:
+   ```yaml
+   # ✅ Good: Clear relationship
+   - "traefik.http.routers.myapp-admin.rule=Host(`admin.myapp.docker.localhost`)"
+
+   # ❌ Bad: Unclear relationship
+   - "traefik.http.routers.router123.rule=Host(`admin.myapp.docker.localhost`)"
+   ```
+
+4. **Document your domains**: Keep a list of active domains in your project README:
+   ```markdown
+   ## Local Development URLs
+   - Frontend: https://myapp.docker.localhost
+   - API: https://api.myapp.docker.localhost
+   - Admin: https://admin.myapp.docker.localhost
+   - Docs: https://docs.myapp.docker.localhost
+   ```
+
+**Troubleshooting custom domains:**
+
+**Issue: Certificate warning**
+- **Cause**: Domain doesn't match wildcard pattern `*.docker.localhost`
+- **Solution**: Ensure domain ends with `.docker.localhost`
+- **Invalid**: `myapp.local`, `myapp.test`
+- **Valid**: `myapp.docker.localhost`, `admin.myapp.docker.localhost`
+
+**Issue: Domain not resolving**
+- **Check Traefik dashboard**: `https://traefik.docker.localhost`
+- **Verify router rule**: Look for your router in the HTTP section
+- **Check service health**: Ensure container is healthy and accessible
+
+**Issue: Wrong service responding**
+- **Cause**: Overlapping router rules
+- **Solution**: Use unique, specific domain patterns
+- **Check rule priority**: More specific rules should have higher priority
+
+---
+
+### Path-Based Routing
+
+Path-based routing directs requests to different services based on the URL path rather than the domain. This is useful for microservices architectures where you want a single domain with multiple backend services.
+
+**Use case:** Single domain (`app.docker.localhost`) routing to different services:
+- `/` → Frontend
+- `/api` → Backend API
+- `/admin` → Admin panel
+- `/docs` → Documentation
+
+**Scenario: Microservices application with path-based routing**
+
+**compose.yml:**
+```yaml
+services:
+  frontend:
+    image: nginx:alpine
+    container_name: app-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Route root path to frontend
+      - "traefik.http.routers.app-frontend.rule=Host(`app.docker.localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.app-frontend.tls=true"
+      - "traefik.http.routers.app-frontend.priority=1"
+      - "traefik.http.services.app-frontend.loadbalancer.server.port=80"
+
+  api:
+    image: node:20-alpine
+    container_name: app-api
+    restart: unless-stopped
+    working_dir: /app
+    command: node server.js
+    volumes:
+      - ./api:/app
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Route /api/* to API service
+      - "traefik.http.routers.app-api.rule=Host(`app.docker.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.app-api.tls=true"
+      - "traefik.http.routers.app-api.priority=10"
+      # Strip /api prefix before forwarding to service
+      - "traefik.http.routers.app-api.middlewares=api-stripprefix"
+      - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/api"
+      - "traefik.http.services.app-api.loadbalancer.server.port=4000"
+
+  admin:
+    image: node:20-alpine
+    container_name: app-admin
+    restart: unless-stopped
+    working_dir: /app
+    command: node server.js
+    volumes:
+      - ./admin:/app
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Route /admin/* to admin service
+      - "traefik.http.routers.app-admin.rule=Host(`app.docker.localhost`) && PathPrefix(`/admin`)"
+      - "traefik.http.routers.app-admin.tls=true"
+      - "traefik.http.routers.app-admin.priority=10"
+      # Strip /admin prefix
+      - "traefik.http.routers.app-admin.middlewares=admin-stripprefix"
+      - "traefik.http.middlewares.admin-stripprefix.stripprefix.prefixes=/admin"
+      - "traefik.http.services.app-admin.loadbalancer.server.port=5000"
+
+  docs:
+    image: nginx:alpine
+    container_name: app-docs
+    restart: unless-stopped
+    volumes:
+      - ./docs:/usr/share/nginx/html
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Route /docs/* to documentation
+      - "traefik.http.routers.app-docs.rule=Host(`app.docker.localhost`) && PathPrefix(`/docs`)"
+      - "traefik.http.routers.app-docs.tls=true"
+      - "traefik.http.routers.app-docs.priority=10"
+      - "traefik.http.services.app-docs.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**How it works:**
+
+1. **Priority system**: Higher priority rules are evaluated first
+   - Specific paths (`/api`, `/admin`, `/docs`): `priority=10`
+   - Root path (`/`): `priority=1`
+   - This ensures `/api` matches before `/` (which matches everything)
+
+2. **Path matching**: `PathPrefix()` matches URL paths starting with the specified prefix
+   - `PathPrefix(/api)` matches: `/api`, `/api/users`, `/api/products/123`
+   - `PathPrefix(/)` matches: Everything (catch-all)
+
+3. **Middleware - StripPrefix**: Removes the path prefix before forwarding
+   - Request: `https://app.docker.localhost/api/users`
+   - Traefik forwards to service: `http://api:4000/users` (without `/api`)
+   - Service sees: `GET /users` (not `GET /api/users`)
+
+**Access URLs:**
+- Frontend: `https://app.docker.localhost/`
+- API: `https://app.docker.localhost/api/users`
+- Admin: `https://app.docker.localhost/admin/dashboard`
+- Docs: `https://app.docker.localhost/docs/getting-started`
+
+**Example API service (api/server.js):**
+```javascript
+const express = require('express');
+const app = express();
+
+// Note: No /api prefix needed in routes (StripPrefix removes it)
+app.get('/users', (req, res) => {
+  res.json({ users: ['Alice', 'Bob'] });
+});
+
+app.get('/products', (req, res) => {
+  res.json({ products: ['Product 1', 'Product 2'] });
+});
+
+app.listen(4000, () => {
+  console.log('API running on port 4000');
+});
+```
+
+**When NOT to strip prefix:**
+
+If your service expects the full path, omit the StripPrefix middleware:
+
+```yaml
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.app-api.rule=Host(`app.docker.localhost`) && PathPrefix(`/api`)"
+  - "traefik.http.routers.app-api.tls=true"
+  - "traefik.http.routers.app-api.priority=10"
+  # No StripPrefix middleware
+  - "traefik.http.services.app-api.loadbalancer.server.port=4000"
+```
+
+Then in your service:
+```javascript
+// Service handles full path
+app.get('/api/users', (req, res) => {
+  res.json({ users: ['Alice', 'Bob'] });
+});
+```
+
+**Advanced path patterns:**
+
+**1. Exact path match:**
+```yaml
+- "traefik.http.routers.api-health.rule=Host(`app.docker.localhost`) && Path(`/api/health`)"
+```
+
+**2. Path with regex:**
+```yaml
+- "traefik.http.routers.api-v1.rule=Host(`app.docker.localhost`) && PathPrefix(`/api/v1`)"
+- "traefik.http.routers.api-v2.rule=Host(`app.docker.localhost`) && PathPrefix(`/api/v2`)"
+```
+
+**3. Multiple path prefixes:**
+```yaml
+- "traefik.http.routers.static.rule=Host(`app.docker.localhost`) && (PathPrefix(`/static`) || PathPrefix(`/media`))"
+```
+
+**4. Combining Host and Path with priority:**
+```yaml
+services:
+  service-a:
+    labels:
+      - "traefik.http.routers.service-a.rule=Host(`app.docker.localhost`) && PathPrefix(`/service-a`)"
+      - "traefik.http.routers.service-a.priority=20"
+
+  service-b:
+    labels:
+      - "traefik.http.routers.service-b.rule=Host(`app.docker.localhost`) && PathPrefix(`/service-b`)"
+      - "traefik.http.routers.service-b.priority=20"
+
+  catch-all:
+    labels:
+      - "traefik.http.routers.catch-all.rule=Host(`app.docker.localhost`)"
+      - "traefik.http.routers.catch-all.priority=1"
+```
+
+**Path-based routing best practices:**
+
+1. **Use priorities**: Always set explicit priorities for overlapping paths
+   ```yaml
+   # Specific paths: high priority (10-20)
+   - "traefik.http.routers.api.priority=10"
+
+   # Root/catch-all: low priority (1)
+   - "traefik.http.routers.frontend.priority=1"
+   ```
+
+2. **Document path structure**: Maintain a routing map in your README:
+   ```markdown
+   ## API Routes
+   | Path | Service | Description |
+   |------|---------|-------------|
+   | / | frontend | Main application |
+   | /api/* | api | REST API |
+   | /admin/* | admin | Admin panel |
+   | /docs/* | docs | Documentation |
+   ```
+
+3. **Test routing**: Verify each path routes to the correct service:
+   ```bash
+   curl -k https://app.docker.localhost/
+   curl -k https://app.docker.localhost/api/users
+   curl -k https://app.docker.localhost/admin/dashboard
+   ```
+
+4. **Consider using subdomains instead**: For clear service separation, subdomains are often cleaner:
+   - Path-based: `app.docker.localhost/api`, `app.docker.localhost/admin`
+   - Subdomain-based: `api.app.docker.localhost`, `admin.app.docker.localhost`
+
+---
+
+### Multiple Domains for One Service
+
+Sometimes you need a single service to be accessible via multiple domains. This is useful for:
+- Supporting multiple brand domains pointing to the same application
+- Providing both a primary and fallback domain
+- Testing domain-specific behavior in the same service
+- Supporting legacy domain names during migration
+
+**Scenario 1: Multiple domains routing to the same service**
+
+**Use case:** SaaS application accessible via multiple brand domains.
+
+**compose.yml:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    container_name: multi-domain-app
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      # Multiple domains using OR operator
+      - "traefik.http.routers.multi-domain.rule=Host(`brand1.docker.localhost`) || Host(`brand2.docker.localhost`) || Host(`brand3.docker.localhost`)"
+      - "traefik.http.routers.multi-domain.tls=true"
+      - "traefik.http.services.multi-domain.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- `https://brand1.docker.localhost` → Same application
+- `https://brand2.docker.localhost` → Same application
+- `https://brand3.docker.localhost` → Same application
+
+**Application code** can detect which domain was used:
+
+**Express.js example:**
+```javascript
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  const domain = req.hostname;
+
+  // Customize response based on domain
+  const brandConfig = {
+    'brand1.docker.localhost': {
+      name: 'Brand One',
+      theme: 'blue',
+      logo: '/logos/brand1.png'
+    },
+    'brand2.docker.localhost': {
+      name: 'Brand Two',
+      theme: 'red',
+      logo: '/logos/brand2.png'
+    },
+    'brand3.docker.localhost': {
+      name: 'Brand Three',
+      theme: 'green',
+      logo: '/logos/brand3.png'
+    }
+  };
+
+  const brand = brandConfig[domain] || brandConfig['brand1.docker.localhost'];
+
+  res.json({
+    message: `Welcome to ${brand.name}!`,
+    domain: domain,
+    config: brand
+  });
+});
+
+app.listen(8000);
+```
+
+**Scenario 2: Primary and fallback domains**
+
+**Use case:** Provide a short primary domain and a descriptive fallback.
+
+**compose.yml:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    container_name: myapp-web
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Short primary domain + descriptive fallback
+      - "traefik.http.routers.myapp.rule=Host(`app.docker.localhost`) || Host(`myapplication.docker.localhost`)"
+      - "traefik.http.routers.myapp.tls=true"
+      - "traefik.http.services.myapp.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- Primary: `https://app.docker.localhost`
+- Fallback: `https://myapplication.docker.localhost`
+
+**Scenario 3: Multiple domains with different paths**
+
+**Use case:** Route different domain+path combinations to the same service with custom handling.
+
+**compose.yml:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    container_name: advanced-routing
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+
+      # Router 1: brand1.docker.localhost/* (all paths)
+      - "traefik.http.routers.brand1.rule=Host(`brand1.docker.localhost`)"
+      - "traefik.http.routers.brand1.tls=true"
+      - "traefik.http.routers.brand1.service=web-service"
+
+      # Router 2: brand2.docker.localhost/* (all paths)
+      - "traefik.http.routers.brand2.rule=Host(`brand2.docker.localhost`)"
+      - "traefik.http.routers.brand2.tls=true"
+      - "traefik.http.routers.brand2.service=web-service"
+
+      # Router 3: app.docker.localhost/brand3/* (specific path)
+      - "traefik.http.routers.brand3.rule=Host(`app.docker.localhost`) && PathPrefix(`/brand3`)"
+      - "traefik.http.routers.brand3.tls=true"
+      - "traefik.http.routers.brand3.priority=10"
+      - "traefik.http.routers.brand3.middlewares=brand3-stripprefix"
+      - "traefik.http.middlewares.brand3-stripprefix.stripprefix.prefixes=/brand3"
+      - "traefik.http.routers.brand3.service=web-service"
+
+      # Shared service definition
+      - "traefik.http.services.web-service.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Access:**
+- `https://brand1.docker.localhost/` → Service
+- `https://brand2.docker.localhost/` → Same service
+- `https://app.docker.localhost/brand3/` → Same service (path stripped)
+
+**Scenario 4: Regex-based domain matching**
+
+**Use case:** Match multiple domains with a pattern (e.g., `*.example.docker.localhost`).
+
+**Note:** Traefik supports regex rules for advanced matching.
+
+**compose.yml:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    container_name: regex-domain
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      # Match any subdomain of example.docker.localhost
+      - "traefik.http.routers.wildcard.rule=HostRegexp(`{subdomain:[a-z]+}.example.docker.localhost`)"
+      - "traefik.http.routers.wildcard.tls=true"
+      - "traefik.http.services.wildcard.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Matches:**
+- `https://client1.example.docker.localhost`
+- `https://client2.example.docker.localhost`
+- `https://any.example.docker.localhost`
+
+**Application can extract subdomain:**
+```javascript
+app.get('/', (req, res) => {
+  const hostname = req.hostname;
+  const subdomain = hostname.split('.')[0];
+
+  res.json({
+    message: `Welcome to ${subdomain}'s page`,
+    subdomain: subdomain
+  });
+});
+```
+
+**Best practices for multiple domains:**
+
+1. **Consolidate rules when possible**: Use OR operator for simple cases:
+   ```yaml
+   # ✅ Good: Single rule for multiple domains
+   - "traefik.http.routers.app.rule=Host(`domain1.docker.localhost`) || Host(`domain2.docker.localhost`)"
+
+   # ❌ Avoid: Multiple routers for the same service (unless you need different middleware)
+   ```
+
+2. **Use separate routers for different middleware**:
+   ```yaml
+   # Router 1: domain1 with authentication
+   - "traefik.http.routers.app-auth.rule=Host(`admin.docker.localhost`)"
+   - "traefik.http.routers.app-auth.middlewares=auth"
+
+   # Router 2: domain2 without authentication
+   - "traefik.http.routers.app-public.rule=Host(`public.docker.localhost`)"
+   ```
+
+3. **Document all domains**: Keep a clear list in your project:
+   ```markdown
+   ## Available Domains
+   - https://brand1.docker.localhost (Primary brand)
+   - https://brand2.docker.localhost (Secondary brand)
+   - https://app.docker.localhost (Admin access)
+   ```
+
+4. **Test all domains**:
+   ```bash
+   for domain in brand1 brand2 brand3; do
+     echo "Testing $domain.docker.localhost"
+     curl -k https://$domain.docker.localhost
+   done
+   ```
+
+5. **Consider canonical URLs**: In your application, implement canonical URL handling to avoid duplicate content issues:
+   ```javascript
+   // Redirect all domains to primary domain
+   app.use((req, res, next) => {
+     const PRIMARY_DOMAIN = 'app.docker.localhost';
+     if (req.hostname !== PRIMARY_DOMAIN) {
+       return res.redirect(`https://${PRIMARY_DOMAIN}${req.originalUrl}`);
+     }
+     next();
+   });
+   ```
+
+**Verification:**
+
+Check Traefik dashboard to see all routers:
+1. Open `https://traefik.docker.localhost`
+2. Navigate to **HTTP** → **Routers**
+3. Find your router and verify all domains are listed in the **Rule** column
+
+**Troubleshooting:**
+
+**Issue: One domain works, others don't**
+- **Check rule syntax**: Ensure proper OR operators (`||`)
+- **Verify certificate coverage**: All domains must end with `.docker.localhost`
+- **Check Traefik logs**: `docker logs traefik`
+
+**Issue: Domains conflict with other services**
+- **Use unique router names**: Each router must have a unique name
+- **Check priorities**: Ensure no overlapping rules with different priorities
+
+---
 
 ## Advanced Configuration
 
