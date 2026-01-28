@@ -82,6 +82,10 @@ COMPOSE_PROFILES=
 
 ## Usage in Projects
 
+📖 **For comprehensive integration guides, framework-specific examples, and troubleshooting, see the [Integration Guide](docs/INTEGRATION_GUIDE.md).**
+
+### Quick Start Example
+
 To expose a container via this proxy, configure your project's `compose.yml` as follows:
 
 1.  **Network:** Connect to the external `traefik-proxy` network.
