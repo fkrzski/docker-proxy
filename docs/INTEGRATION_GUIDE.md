@@ -602,7 +602,585 @@ If you enabled the `pma` profile in the proxy, access the database at `https://p
 
 ### Node.js Applications
 
-**TODO:** Add Express, Next.js, and React development server examples
+Node.js applications can run directly with Node or through process managers like PM2. The examples below cover popular frameworks with both development and production configurations.
+
+#### Express.js Application
+
+Express.js applications typically run on port 3000 by default. This example shows a simple Express app with custom port configuration.
+
+**Directory structure:**
+```
+my-express-app/
+├── compose.yml
+├── Dockerfile
+├── package.json
+├── app.js
+└── (other application files)
+```
+
+**compose.yml:**
+```yaml
+services:
+  express:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: express-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.express.rule=Host(`express.docker.localhost`)"
+      - "traefik.http.routers.express.tls=true"
+      - "traefik.http.services.express.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile:**
+```dockerfile
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start application
+CMD ["npm", "start"]
+```
+
+**app.js (minimal example):**
+```javascript
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Health check endpoint (required for healthcheck)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// Main route
+app.get('/', (req, res) => {
+  res.json({ message: 'Hello from Express!' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+
+**package.json:**
+```json
+{
+  "name": "express-docker-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Express app at: `https://express.docker.localhost`
+
+**Development mode with hot reload:**
+To enable hot reload during development, modify the `compose.yml`:
+
+```yaml
+services:
+  express:
+    # ... other config
+    command: npm run dev
+    volumes:
+      - ./:/app
+      - /app/node_modules  # Prevents overwriting node_modules
+    environment:
+      - NODE_ENV=development
+```
+
+**Custom port configuration:**
+If your Express app runs on a different port (e.g., 8080):
+
+```yaml
+services:
+  express:
+    environment:
+      - PORT=8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.express.rule=Host(`express.docker.localhost`)"
+      - "traefik.http.routers.express.tls=true"
+      - "traefik.http.services.express.loadbalancer.server.port=8080"  # Match your port
+```
+
+---
+
+#### Next.js Application
+
+Next.js applications require special consideration for hot reload and development server configuration. This example includes both development and production setups.
+
+**Directory structure:**
+```
+my-nextjs-app/
+├── compose.yml
+├── Dockerfile
+├── Dockerfile.dev
+├── next.config.js
+├── package.json
+└── (Next.js application files)
+```
+
+**compose.yml (Development):**
+```yaml
+services:
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nextjs-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true  # Enable hot reload in Docker
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextjs.rule=Host(`nextjs.docker.localhost`)"
+      - "traefik.http.routers.nextjs.tls=true"
+      - "traefik.http.services.nextjs.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile.dev:**
+```dockerfile
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "run", "dev"]
+```
+
+**Dockerfile (Production):**
+```dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy application and build
+COPY . .
+RUN npm run build
+
+# Production image
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy built files
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
+```
+
+**next.config.js:**
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Enable standalone output for Docker
+  output: 'standalone',
+
+  // Required for hot reload in Docker
+  webpackDevMiddleware: config => {
+    config.watchOptions = {
+      poll: 1000,
+      aggregateTimeout: 300,
+    }
+    return config
+  },
+}
+
+module.exports = nextConfig
+```
+
+**package.json:**
+```json
+{
+  "name": "nextjs-docker-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+```
+
+**Usage (Development):**
+```bash
+docker compose up -d
+```
+
+Access your Next.js app at: `https://nextjs.docker.localhost`
+
+**Hot reload verification:**
+1. Edit any page in `pages/` or `app/`
+2. Save the file
+3. Browser should auto-refresh with changes
+
+**Production build:**
+Switch to production Dockerfile in `compose.yml`:
+```yaml
+services:
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Use production Dockerfile
+    environment:
+      - NODE_ENV=production
+    # Remove volumes for production
+```
+
+**Troubleshooting hot reload:**
+If hot reload isn't working:
+1. Ensure `WATCHPACK_POLLING=true` is set
+2. Verify volume mounts include source code
+3. Check `next.config.js` has webpack dev middleware config
+4. Try increasing poll interval: `poll: 2000`
+
+---
+
+#### NestJS Application
+
+NestJS applications follow a modular architecture and work well with Docker. This example includes development and production configurations.
+
+**Directory structure:**
+```
+my-nestjs-app/
+├── compose.yml
+├── Dockerfile
+├── Dockerfile.dev
+├── nest-cli.json
+├── package.json
+├── src/
+│   ├── main.ts
+│   └── (other source files)
+└── tsconfig.json
+```
+
+**compose.yml:**
+```yaml
+services:
+  nestjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nestjs-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/dist
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nestjs.rule=Host(`nestjs.docker.localhost`)"
+      - "traefik.http.routers.nestjs.tls=true"
+      - "traefik.http.services.nestjs.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile.dev:**
+```dockerfile
+FROM node:20-alpine
+
+# Install development dependencies
+RUN apk add --no-cache wget
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server with watch mode
+CMD ["npm", "run", "start:dev"]
+```
+
+**Dockerfile (Production):**
+```dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source files
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS runner
+
+RUN apk add --no-cache wget
+
+WORKDIR /app
+
+# Copy package files and install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+
+CMD ["node", "dist/main"]
+```
+
+**src/main.ts:**
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Enable CORS if needed
+  app.enableCors();
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+
+  console.log(`Application is running on: http://localhost:${port}`);
+}
+bootstrap();
+```
+
+**package.json:**
+```json
+{
+  "name": "nestjs-docker-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
+    "build": "nest build"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.0.0",
+    "@nestjs/schematics": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+**Health check endpoint (src/health/health.controller.ts):**
+```typescript
+import { Controller, Get } from '@nestjs/common';
+
+@Controller('health')
+export class HealthController {
+  @Get()
+  check() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  }
+}
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your NestJS app at: `https://nestjs.docker.localhost`
+
+**Development with hot reload:**
+The Dockerfile.dev configuration automatically enables hot reload through NestJS's watch mode. Changes to TypeScript files will trigger automatic recompilation.
+
+**Production deployment:**
+Update `compose.yml` to use production Dockerfile:
+```yaml
+services:
+  nestjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    # Remove volumes for production
+```
+
+**Connecting to proxy services:**
+To connect NestJS to the proxy's MySQL or Redis:
+
+```yaml
+services:
+  nestjs:
+    # ... other config
+    environment:
+      - DATABASE_HOST=mysql
+      - DATABASE_PORT=3306
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=root
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - traefik-proxy  # Must be on same network as MySQL/Redis
+```
+
+---
+
+**Common Node.js Configuration Notes:**
+
+1. **Port configuration:** Always use the `traefik.http.services.<name>.loadbalancer.server.port` label to specify the port your Node.js app listens on. This is crucial when your app doesn't use port 80.
+
+2. **Hot reload in Docker:**
+   - For Next.js: Use `WATCHPACK_POLLING=true` and configure webpack dev middleware
+   - For NestJS: Use `--watch` flag in development
+   - For Express/custom apps: Use `nodemon` with polling enabled
+   - Always mount source code as volumes for development
+
+3. **node_modules handling:** Use a separate volume for `node_modules` to prevent host files from overwriting container dependencies:
+   ```yaml
+   volumes:
+     - ./:/app
+     - /app/node_modules  # Anonymous volume with higher priority
+   ```
+
+4. **Environment variables:** Use `.env` files for local development and pass them through `compose.yml`:
+   ```yaml
+   services:
+     app:
+       env_file:
+         - .env
+   ```
+
+5. **Health checks:** Implement a `/health` endpoint in your app for proper container health monitoring.
+
+6. **Multi-stage builds:** For production, use multi-stage Dockerfiles to reduce final image size and include only necessary files.
+
+7. **Custom ports examples:**
+   - Port 8080: `traefik.http.services.myapp.loadbalancer.server.port=8080`
+   - Port 4000: `traefik.http.services.myapp.loadbalancer.server.port=4000`
+   - Port 5000: `traefik.http.services.myapp.loadbalancer.server.port=5000`
+
+8. **Database connections:** When connecting to the proxy's MySQL service, use `mysql` as the hostname (not `localhost` or `127.0.0.1`).
 
 ### Python/Django Projects
 
