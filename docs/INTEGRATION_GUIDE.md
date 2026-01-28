@@ -12,6 +12,7 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
   - [Node.js Applications](#nodejs-applications)
   - [Python/Django Projects](#pythondjango-projects)
   - [Static Sites](#static-sites)
+  - [Go Applications](#go-applications)
 - [Advanced Configuration](#advanced-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
@@ -2070,6 +2071,746 @@ networks:
 ### Static Sites
 
 **TODO:** Add Nginx static site serving example
+
+### Go Applications
+
+Go applications are ideal for containerized deployments due to their compiled nature. Unlike interpreted languages, Go apps are deployed as single binaries without source code, resulting in minimal, secure container images. The examples below demonstrate production-ready configurations for popular Go frameworks.
+
+#### Gin Framework Application
+
+Gin is a high-performance HTTP web framework for Go. This example shows a production deployment using multi-stage builds to create a minimal container image.
+
+**Directory structure:**
+```
+my-gin-app/
+├── compose.yml
+├── Dockerfile
+├── go.mod
+├── go.sum
+├── main.go
+└── (other application files)
+```
+
+**compose.yml:**
+```yaml
+services:
+  gin-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gin-app
+    restart: unless-stopped
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gin-app.rule=Host(`gin-app.docker.localhost`)"
+      - "traefik.http.routers.gin-app.tls=true"
+      - "traefik.http.services.gin-app.loadbalancer.server.port=8080"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile (Multi-stage build):**
+```dockerfile
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+# Runtime stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates wget
+
+WORKDIR /root/
+
+# Copy binary from builder
+COPY --from=builder /app/main .
+
+# Expose port
+EXPOSE 8080
+
+# Run binary
+CMD ["./main"]
+```
+
+**main.go (minimal example):**
+```go
+package main
+
+import (
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	// Set Gin mode from environment
+	if mode := os.Getenv("GIN_MODE"); mode != "" {
+		gin.SetMode(mode)
+	}
+
+	router := gin.Default()
+
+	// Health check endpoint (required for healthcheck)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+		})
+	})
+
+	// Main route
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Hello from Gin!",
+			"version": "1.0.0",
+		})
+	})
+
+	// API routes
+	api := router.Group("/api")
+	{
+		api.GET("/ping", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "pong",
+			})
+		})
+	}
+
+	// Get port from environment or use default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	router.Run(":" + port)
+}
+```
+
+**go.mod:**
+```go
+module gin-app
+
+go 1.21
+
+require github.com/gin-gonic/gin v1.9.1
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Gin app at: `https://gin-app.docker.localhost`
+
+**Key features:**
+- **Multi-stage build**: Reduces final image size from ~800MB to ~15MB
+- **Binary-only deployment**: No source code in production container
+- **Minimal attack surface**: Alpine-based image with only runtime dependencies
+- **Health check**: Built-in endpoint for container health monitoring
+
+---
+
+#### Echo Framework Application
+
+Echo is another high-performance, minimalist Go web framework. This example demonstrates Echo's routing capabilities and middleware integration.
+
+**Directory structure:**
+```
+my-echo-app/
+├── compose.yml
+├── Dockerfile
+├── go.mod
+├── go.sum
+├── main.go
+└── (other application files)
+```
+
+**compose.yml:**
+```yaml
+services:
+  echo-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: echo-app
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - PORT=8080
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.echo-app.rule=Host(`echo-app.docker.localhost`)"
+      - "traefik.http.routers.echo-app.tls=true"
+      - "traefik.http.services.echo-app.loadbalancer.server.port=8080"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile:**
+```dockerfile
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main .
+
+# Runtime stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates wget
+
+WORKDIR /root/
+
+# Copy binary from builder
+COPY --from=builder /app/main .
+
+EXPOSE 8080
+
+CMD ["./main"]
+```
+
+**main.go:**
+```go
+package main
+
+import (
+	"net/http"
+	"os"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+)
+
+func main() {
+	e := echo.New()
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+
+	// Health check endpoint
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"status": "ok",
+		})
+	})
+
+	// Routes
+	e.GET("/", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"message": "Hello from Echo!",
+			"version": "1.0.0",
+		})
+	})
+
+	// API group
+	api := e.Group("/api")
+	api.GET("/ping", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"message": "pong",
+		})
+	})
+
+	api.GET("/users/:id", func(c echo.Context) error {
+		id := c.Param("id")
+		return c.JSON(http.StatusOK, map[string]string{
+			"user_id": id,
+			"name":    "John Doe",
+		})
+	})
+
+	// Get port from environment
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	e.Logger.Fatal(e.Start(":" + port))
+}
+```
+
+**go.mod:**
+```go
+module echo-app
+
+go 1.21
+
+require (
+	github.com/labstack/echo/v4 v4.11.3
+)
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Echo app at: `https://echo-app.docker.localhost`
+
+**Key features:**
+- **Built-in middleware**: Logger, Recover, CORS pre-configured
+- **Route groups**: Clean API organization
+- **Optimized binary**: Uses `-ldflags="-w -s"` to strip debug symbols
+- **Production-ready**: Minimal container with security best practices
+
+---
+
+#### Standard Library (net/http) Application
+
+For applications that don't require a framework, Go's standard library provides robust HTTP handling. This example shows a production-ready setup using only the standard library.
+
+**Directory structure:**
+```
+my-go-app/
+├── compose.yml
+├── Dockerfile
+├── go.mod
+├── main.go
+└── handlers/
+    └── handlers.go
+```
+
+**compose.yml:**
+```yaml
+services:
+  go-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-app
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - PORT=8080
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.go-app.rule=Host(`go-app.docker.localhost`)"
+      - "traefik.http.routers.go-app.tls=true"
+      - "traefik.http.services.go-app.loadbalancer.server.port=8080"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Dockerfile:**
+```dockerfile
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Copy go.mod (and go.sum if exists)
+COPY go.mod ./
+
+# Download dependencies (if any)
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build with optimizations
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-w -s" \
+    -a -installsuffix cgo \
+    -o main .
+
+# Runtime stage - use scratch for minimal image
+FROM alpine:latest
+
+# Add CA certificates and wget for healthcheck
+RUN apk --no-cache add ca-certificates wget
+
+WORKDIR /root/
+
+# Copy binary from builder
+COPY --from=builder /app/main .
+
+EXPOSE 8080
+
+CMD ["./main"]
+```
+
+**main.go:**
+```go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
+func main() {
+	// Get port from environment
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Create router
+	mux := http.NewServeMux()
+
+	// Register routes
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/", homeHandler)
+	mux.HandleFunc("/api/ping", pingHandler)
+
+	// Create server with timeouts
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      loggingMiddleware(mux),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start server in goroutine
+	go func() {
+		log.Printf("Server starting on port %s", port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exited")
+}
+
+// Health check handler
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	})
+}
+
+// Home handler
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Hello from Go net/http!",
+		"version": "1.0.0",
+	})
+}
+
+// Ping handler
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "pong",
+	})
+}
+
+// Logging middleware
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf(
+			"%s %s %s %v",
+			r.Method,
+			r.RequestURI,
+			r.RemoteAddr,
+			time.Since(start),
+		)
+	})
+}
+```
+
+**go.mod:**
+```go
+module go-app
+
+go 1.21
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Go app at: `https://go-app.docker.localhost`
+
+**Key features:**
+- **Zero external dependencies**: Uses only Go standard library
+- **Graceful shutdown**: Handles SIGTERM/SIGINT signals properly
+- **Production timeouts**: Configured read/write/idle timeouts
+- **Logging middleware**: Request logging built-in
+- **Minimal image**: Can use `scratch` base for <10MB final image
+
+---
+
+#### Binary-Only Deployment Best Practices
+
+Go's compiled nature enables unique deployment advantages. Follow these patterns for optimal container images:
+
+**1. Multi-stage builds (Recommended)**
+
+Always use multi-stage builds to separate build and runtime environments:
+
+```dockerfile
+# Build stage - includes Go compiler and tools
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o app .
+
+# Runtime stage - minimal image
+FROM alpine:latest
+COPY --from=builder /app/app .
+CMD ["./app"]
+```
+
+**Benefits:**
+- **Size reduction**: 800MB → 15MB (98% smaller)
+- **Security**: No compiler or source code in production
+- **Attack surface**: Minimal packages installed
+
+**2. Static binary compilation**
+
+Build statically-linked binaries for maximum compatibility:
+
+```dockerfile
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-w -s" \
+    -a -installsuffix cgo \
+    -o main .
+```
+
+**Flags explained:**
+- `CGO_ENABLED=0`: Disable C dependencies
+- `-ldflags="-w -s"`: Strip debug symbols (smaller binary)
+- `-a`: Force rebuild of all packages
+- `-installsuffix cgo`: Separate output directory
+
+**3. Base image selection**
+
+Choose the right base image for your needs:
+
+```dockerfile
+# Option 1: Alpine (15-20MB) - includes shell and basic tools
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+
+# Option 2: Distroless (5-10MB) - no shell, minimal packages
+FROM gcr.io/distroless/static-debian11
+
+# Option 3: Scratch (<5MB) - only your binary
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+```
+
+**When to use each:**
+- **Alpine**: Development, debugging, health checks with wget/curl
+- **Distroless**: Production with external health checks
+- **Scratch**: Maximum security, external monitoring only
+
+**4. No source code mounting**
+
+Unlike Node.js or Python, Go applications should **never** mount source code:
+
+```yaml
+# ❌ WRONG - Don't do this with Go
+services:
+  app:
+    volumes:
+      - ./:/app  # Unnecessary and insecure
+
+# ✅ CORRECT - Binary-only deployment
+services:
+  app:
+    build:
+      context: .
+    # No volumes needed
+```
+
+**Why?**
+- Go compiles to binary - source code not needed at runtime
+- Eliminates exposure of proprietary source code
+- Prevents accidental modification of running code
+- Improves startup time (no file watching overhead)
+
+**5. Development workflow**
+
+For local development with live reload, rebuild containers instead of mounting code:
+
+```yaml
+# Development compose override
+services:
+  app:
+    build:
+      target: builder  # Stop at builder stage for faster rebuilds
+    command: go run main.go
+    volumes:
+      - ./:/app  # Only for development
+```
+
+Or use air for live reload:
+
+```dockerfile
+# Development Dockerfile
+FROM golang:1.21-alpine
+WORKDIR /app
+RUN go install github.com/cosmtrek/air@latest
+COPY . .
+CMD ["air"]
+```
+
+**6. Health check considerations**
+
+When using minimal images (distroless/scratch), adjust health checks:
+
+```yaml
+# Alpine - can use wget
+healthcheck:
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+
+# Distroless/Scratch - use external checks
+healthcheck:
+  test: ["NONE"]  # Rely on Traefik's health check
+```
+
+Or compile a health check binary:
+
+```go
+// healthcheck.go
+package main
+
+import (
+    "net/http"
+    "os"
+)
+
+func main() {
+    resp, err := http.Get("http://localhost:8080/health")
+    if err != nil || resp.StatusCode != 200 {
+        os.Exit(1)
+    }
+    os.Exit(0)
+}
+```
+
+```dockerfile
+RUN go build -o healthcheck ./healthcheck.go
+COPY --from=builder /app/healthcheck .
+HEALTHCHECK CMD ["./healthcheck"]
+```
+
+**7. Image optimization checklist**
+
+Before deploying, verify your image follows these practices:
+
+- [ ] Multi-stage build implemented
+- [ ] Final image uses Alpine or smaller
+- [ ] Static binary (CGO_ENABLED=0)
+- [ ] Debug symbols stripped (-ldflags="-w -s")
+- [ ] No source code in final image
+- [ ] CA certificates included (if making HTTPS requests)
+- [ ] Health check uses available tools
+- [ ] Image size < 20MB (50MB max)
+
+**Example optimized build:**
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o app .
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates wget
+COPY --from=builder /app/app .
+EXPOSE 8080
+HEALTHCHECK CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+CMD ["./app"]
+```
+
+**Result:** Production-ready image with full health checks in 15-20MB.
 
 ## Advanced Configuration
 
