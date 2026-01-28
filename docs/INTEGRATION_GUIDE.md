@@ -198,7 +198,407 @@ docker compose up -d
 
 ### PHP Projects
 
-**TODO:** Add PHP/Apache and PHP-FPM/Nginx examples
+PHP applications typically require a web server (Nginx or Apache) and PHP-FPM. The examples below show production-ready configurations for popular PHP frameworks.
+
+#### Laravel with Nginx + PHP-FPM
+
+Laravel applications work best with Nginx as a reverse proxy and PHP-FPM for processing PHP scripts.
+
+**Directory structure:**
+```
+my-laravel-app/
+├── compose.yml
+├── docker/
+│   └── nginx/
+│       └── default.conf
+├── Dockerfile
+└── (your Laravel application files)
+```
+
+**compose.yml:**
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - traefik-proxy
+      - app-network
+    environment:
+      - DB_HOST=mysql
+      - DB_DATABASE=laravel
+      - DB_USERNAME=laravel
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: laravel-nginx
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - traefik-proxy
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel.rule=Host(`laravel.docker.localhost`)"
+      - "traefik.http.routers.laravel.tls=true"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true
+  app-network:
+    driver: bridge
+```
+
+**docker/nginx/default.conf:**
+```nginx
+server {
+    listen 80;
+    server_name laravel.docker.localhost;
+    root /var/www/public;
+
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass app:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+
+**Dockerfile:**
+```dockerfile
+FROM php:8.2-fpm
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www
+
+# Copy application files
+COPY . .
+
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Laravel app at: `https://laravel.docker.localhost`
+
+**Connecting to proxy's MySQL:**
+To use the MySQL service from the main proxy, modify the `compose.yml`:
+```yaml
+services:
+  app:
+    # ... other config
+    environment:
+      - DB_HOST=mysql  # Name of the MySQL container in traefik-proxy network
+      - DB_DATABASE=laravel
+      - DB_USERNAME=root
+      - DB_PASSWORD=root  # Use MYSQL_ROOT_PASSWORD from proxy's .env
+    networks:
+      - traefik-proxy  # Must be on the same network as MySQL
+```
+
+---
+
+#### Symfony with Nginx + PHP-FPM
+
+Symfony applications follow a similar pattern to Laravel, with adjustments for Symfony's directory structure.
+
+**compose.yml:**
+```yaml
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: symfony-php
+    restart: unless-stopped
+    working_dir: /var/www/symfony
+    volumes:
+      - ./:/var/www/symfony
+    networks:
+      - traefik-proxy
+      - symfony-network
+    environment:
+      - DATABASE_URL=mysql://symfony:secret@mysql:3306/symfony?serverVersion=8.0
+      - APP_ENV=dev
+      - APP_SECRET=your-secret-key
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: symfony-nginx
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/symfony
+      - ./docker/nginx/symfony.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php
+    networks:
+      - traefik-proxy
+      - symfony-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.symfony.rule=Host(`symfony.docker.localhost`)"
+      - "traefik.http.routers.symfony.tls=true"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true
+  symfony-network:
+    driver: bridge
+```
+
+**docker/nginx/symfony.conf:**
+```nginx
+server {
+    listen 80;
+    server_name symfony.docker.localhost;
+    root /var/www/symfony/public;
+
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass php:9000;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        internal;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+}
+```
+
+**Dockerfile:**
+```dockerfile
+FROM php:8.2-fpm
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libicu-dev \
+    libpq-dev \
+    libzip-dev
+
+# Install PHP extensions
+RUN docker-php-ext-install \
+    pdo \
+    pdo_mysql \
+    intl \
+    zip \
+    opcache
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www/symfony
+
+# Copy application
+COPY . .
+
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/symfony/var
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access your Symfony app at: `https://symfony.docker.localhost`
+
+---
+
+#### WordPress with MySQL
+
+WordPress requires both a web server with PHP support and a MySQL database. This example shows WordPress connecting to the proxy's MySQL service.
+
+**compose.yml:**
+```yaml
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: root  # Must match MYSQL_ROOT_PASSWORD from proxy
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - traefik-proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wordpress.rule=Host(`wordpress.docker.localhost`)"
+      - "traefik.http.routers.wordpress.tls=true"
+
+volumes:
+  wordpress_data:
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Prerequisites:**
+1. Ensure the proxy's MySQL service is running with the `mysql` profile enabled
+2. Create the WordPress database:
+
+```bash
+# Access MySQL container from the proxy
+docker exec -it mysql mysql -uroot -proot
+
+# In MySQL prompt:
+CREATE DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+```
+
+**Usage:**
+```bash
+docker compose up -d
+```
+
+Access WordPress at: `https://wordpress.docker.localhost`
+
+**First-time setup:**
+1. Navigate to `https://wordpress.docker.localhost`
+2. Select your language
+3. Complete the installation form with:
+   - Site Title: Your site name
+   - Username: admin username
+   - Password: secure password
+   - Email: your email
+4. Click "Install WordPress"
+
+**Custom PHP settings (optional):**
+To customize PHP configuration, create a custom Dockerfile:
+
+```dockerfile
+FROM wordpress:latest
+
+# Custom PHP settings
+RUN echo "upload_max_filesize = 64M" > /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/uploads.ini
+```
+
+Update `compose.yml`:
+```yaml
+services:
+  wordpress:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # ... rest of configuration
+```
+
+**Using phpMyAdmin:**
+If you enabled the `pma` profile in the proxy, access the database at `https://pma.docker.localhost` with:
+- Server: `mysql`
+- Username: `root`
+- Password: `root` (or your configured password)
+
+---
+
+**Common PHP Configuration Notes:**
+
+1. **Database connections:** When connecting to the proxy's MySQL/Redis services, use the container name (`mysql`, `redis`) as the host, not `localhost` or `127.0.0.1`.
+
+2. **Multiple networks:** Services that need to communicate with both Traefik and other containers should be on both `traefik-proxy` and a private network.
+
+3. **Environment variables:** Store sensitive data in `.env` files (excluded from git) and reference them in `compose.yml`.
+
+4. **Volume persistence:** Use named volumes for databases and uploads to prevent data loss.
+
+5. **Traefik network specification:** When exposing services through Traefik that are on multiple networks, add the `traefik.docker.network=traefik-proxy` label to ensure proper routing.
 
 ### Node.js Applications
 
