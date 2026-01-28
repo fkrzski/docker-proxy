@@ -82,7 +82,7 @@ If any check fails, return to the main [README.md](../README.md) and complete th
    - `image: nginx:alpine` - Uses a lightweight Nginx web server
    - `networks: traefik-proxy` - Connects to the proxy's network
    - `traefik.enable=true` - Tells Traefik to route this container
-   - `Host(\`quickstart.docker.localhost\`)` - Defines the domain
+   - `Host('quickstart.docker.localhost')` - Defines the domain
    - `tls=true` - Enables HTTPS
 
    **Note:** No `ports:` section needed! Traefik handles all routing.
@@ -109,7 +109,7 @@ If any check fails, return to the main [README.md](../README.md) and complete th
 
    Navigate to **HTTP Routers** section. You should see:
    - Router name: `quickstart`
-   - Rule: `Host(\`quickstart.docker.localhost\`)`
+   - Rule: `Host('quickstart.docker.localhost')`
    - TLS: ✓ (enabled)
    - Status: Success (green indicator)
 
