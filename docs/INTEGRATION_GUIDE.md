@@ -4055,16 +4055,426 @@ Check Traefik dashboard to see all routers:
 
 ## Troubleshooting
 
-### Common Issues
+This section covers common integration issues and their solutions. For each problem, we provide diagnostic steps and fixes.
 
-**Service not accessible**
-- **TODO:** Add diagnostic steps
+### Service Not Appearing in Traefik Dashboard
 
-**Certificate warnings**
-- **TODO:** Add certificate troubleshooting
+**Symptoms:**
+- Your service is running (`docker compose ps` shows "Up")
+- Traefik dashboard shows no router for your service
+- Accessing your domain returns "404 page not found"
 
-**Network connectivity issues**
-- **TODO:** Add network debugging steps
+**Diagnostic Steps:**
+
+1. **Verify Traefik labels are present:**
+
+   ```bash
+   docker inspect <container_name> --format='{{json .Config.Labels}}' | jq
+   ```
+
+   **Expected output:** You should see labels like `traefik.enable`, `traefik.http.routers.*`, etc.
+
+   **If labels are missing:** Check your `compose.yml` syntax. Labels must be under the service definition, not at the root level.
+
+2. **Check if service is on the traefik-proxy network:**
+
+   ```bash
+   docker inspect <container_name> --format='{{json .NetworkSettings.Networks}}' | jq
+   ```
+
+   **Expected output:** You should see `traefik-proxy` in the networks list.
+
+   **If network is missing:** Verify your `compose.yml` includes:
+   ```yaml
+   services:
+     your-service:
+       networks:
+         - traefik-proxy
+
+   networks:
+     traefik-proxy:
+       external: true
+   ```
+
+3. **Restart the service to re-register with Traefik:**
+
+   ```bash
+   docker compose restart
+   ```
+
+   Wait 5-10 seconds, then refresh the Traefik dashboard.
+
+**Common Causes:**
+
+- **Label typos:** Ensure label names are exactly as shown (e.g., `traefik.enable`, not `traefik.enabled`)
+- **Indentation errors:** YAML is sensitive to indentation. Labels must be at the same level as `image`, `networks`, etc.
+- **Service not connected to network:** Missing `networks: - traefik-proxy` in service definition
+- **External network not declared:** Missing `networks: traefik-proxy: external: true` at compose file root
+
+---
+
+### 502 Bad Gateway Errors
+
+**Symptoms:**
+- Service appears in Traefik dashboard
+- Accessing the domain returns "502 Bad Gateway"
+- Browser shows "upstream connect error or disconnect/reset before headers"
+
+**Diagnostic Steps:**
+
+1. **Check if the container is actually running:**
+
+   ```bash
+   docker compose ps
+   ```
+
+   **Expected:** Service shows "Up" status.
+
+   **If stopped:** Check container logs for crash reasons:
+   ```bash
+   docker compose logs <service_name>
+   ```
+
+2. **Verify the container is listening on the expected port:**
+
+   ```bash
+   docker exec <container_name> netstat -tlnp
+   # or for Alpine-based images:
+   docker exec <container_name> ss -tlnp
+   ```
+
+   **Expected output:** You should see your application listening on the port (e.g., `0.0.0.0:80` or `0.0.0.0:3000`)
+
+   **If not listening:** Your application hasn't started correctly. Check application logs.
+
+3. **Verify Traefik is targeting the correct port:**
+
+   If your application runs on a port other than 80, you must specify it:
+
+   ```yaml
+   labels:
+     - "traefik.http.services.my-app.loadbalancer.server.port=3000"
+   ```
+
+   Check current configuration:
+   ```bash
+   docker inspect <container_name> --format='{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' | grep port
+   ```
+
+4. **Test direct container connectivity:**
+
+   From another container on the same network:
+   ```bash
+   docker run --rm --network traefik-proxy nicolaka/netshoot curl http://<container_name>:<port>
+   ```
+
+   **Expected:** HTML response from your application.
+
+   **If fails:** Issue is with your application, not Traefik routing.
+
+**Solutions:**
+
+- **Wrong port configured:** Add or fix the `loadbalancer.server.port` label
+- **Application not binding to 0.0.0.0:** Ensure app listens on `0.0.0.0` (all interfaces), not just `127.0.0.1`
+- **Application crashed:** Check logs and fix application errors
+- **Health check failing:** If you have health checks configured, ensure they pass
+
+---
+
+### Certificate Warnings in Browser
+
+**Symptoms:**
+- Browser shows "Your connection is not private" or "NET::ERR_CERT_AUTHORITY_INVALID"
+- Certificate error for `*.docker.localhost` domains
+- HTTPS connection marked as insecure
+
+**Solution Steps:**
+
+1. **Install the local Certificate Authority:**
+
+   ```bash
+   mkcert -install
+   ```
+
+   **Expected output:**
+   ```
+   The local CA is now installed in the system trust store!
+   ```
+
+2. **Verify mkcert CA is trusted:**
+
+   ```bash
+   mkcert -CAROOT
+   ```
+
+   This shows the directory where the CA certificates are stored.
+
+   **On Linux:** Check if CA is in NSS database:
+   ```bash
+   certutil -d sql:$HOME/.pki/nssdb -L | grep mkcert
+   ```
+
+3. **Restart your browser completely:**
+
+   - Close all browser windows and tabs
+   - On Linux, ensure all browser processes are stopped:
+     ```bash
+     pkill -f firefox
+     # or
+     pkill -f chrome
+     ```
+   - Reopen the browser and test again
+
+4. **Verify certificate files exist and are readable:**
+
+   ```bash
+   ls -l certs/
+   ```
+
+   **Expected output:**
+   ```
+   -rw-r--r-- 1 user user 1234 ... local-cert.pem
+   -rw-r--r-- 1 user user 5678 ... local-key.pem
+   ```
+
+   **If missing:** Regenerate certificates:
+   ```bash
+   mkcert -key-file certs/local-key.pem \
+     -cert-file certs/local-cert.pem \
+     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
+   chmod 644 certs/local-cert.pem certs/local-key.pem
+   docker compose restart traefik
+   ```
+
+**Special Cases:**
+
+- **Firefox:** May require additional steps. Go to `about:preferences#privacy`, scroll to "Certificates", click "View Certificates", then "Authorities" tab. Import the mkcert CA manually if needed.
+- **Chrome/Chromium:** Uses system trust store. Ensure `libnss3-tools` is installed.
+- **Private/Incognito mode:** Some browsers don't trust local CAs in private mode. Use normal browsing mode for development.
+
+---
+
+### Network traefik-proxy Not Found
+
+**Symptoms:**
+- `docker compose up` fails with error: `network traefik-proxy declared as external, but could not be found`
+- Container won't start due to missing network
+
+**Solution:**
+
+1. **Create the network:**
+
+   ```bash
+   docker network create traefik-proxy
+   ```
+
+   **Expected output:**
+   ```
+   <network_id>
+   ```
+
+2. **Verify network exists:**
+
+   ```bash
+   docker network ls | grep traefik-proxy
+   ```
+
+   **Expected output:**
+   ```
+   <id>  traefik-proxy  bridge  local
+   ```
+
+3. **Restart your project:**
+
+   ```bash
+   docker compose up -d
+   ```
+
+**Prevention:**
+
+This network is created automatically by the `setup.sh` script. If you performed manual installation, ensure this step is included in your setup process.
+
+**Note:** This network persists even after stopping containers. You only need to create it once per Docker host.
+
+---
+
+### Port Conflicts (80/443 Already in Use)
+
+**Symptoms:**
+- Traefik container fails to start
+- Error message: `Bind for 0.0.0.0:80 failed: port is already allocated`
+- Docker logs show port binding errors
+
+**Diagnostic Steps:**
+
+1. **Identify what's using the ports:**
+
+   ```bash
+   sudo lsof -i :80
+   sudo lsof -i :443
+   ```
+
+   **or:**
+
+   ```bash
+   sudo netstat -tlnp | grep ':80\|:443'
+   ```
+
+   **Common culprits:**
+   - Apache (`apache2`, `httpd`)
+   - Nginx
+   - Another Traefik instance
+   - Other Docker containers with port mappings
+
+2. **Check for other Traefik instances:**
+
+   ```bash
+   docker ps -a | grep traefik
+   ```
+
+   If you see multiple Traefik containers, stop the unwanted ones:
+   ```bash
+   docker stop <container_id>
+   docker rm <container_id>
+   ```
+
+3. **Check for conflicting Docker containers:**
+
+   ```bash
+   docker ps --filter "publish=80" --filter "publish=443"
+   ```
+
+**Solutions:**
+
+- **System web server running:** Stop it temporarily:
+  ```bash
+  sudo systemctl stop apache2
+  # or
+  sudo systemctl stop nginx
+  ```
+
+  To disable permanently:
+  ```bash
+  sudo systemctl disable apache2
+  ```
+
+- **Another Docker container:** Stop the conflicting container or remove its port mapping (it can use Traefik instead!)
+
+- **Multiple Traefik instances:** Keep only one Traefik instance. This proxy is designed to be a single shared reverse proxy for all projects.
+
+- **Port forwarding rules:** Check if you have custom iptables rules or Docker networks with conflicting port mappings
+
+**Alternative Solution (Advanced):**
+
+If you must keep another service on 80/443, you can modify Traefik to use different ports in `docker-compose.yml`:
+
+```yaml
+services:
+  traefik:
+    ports:
+      - "8080:80"
+      - "8443:443"
+```
+
+However, this defeats the purpose of using standard HTTP/HTTPS ports and is not recommended.
+
+---
+
+### Checking Traefik Logs
+
+Traefik logs are essential for diagnosing routing and connectivity issues.
+
+**View Real-Time Logs:**
+
+```bash
+docker logs -f traefik
+```
+
+Press `Ctrl+C` to stop following.
+
+**View Last 50 Lines:**
+
+```bash
+docker logs traefik --tail 50
+```
+
+**View Logs Since Specific Time:**
+
+```bash
+docker logs traefik --since 30m  # Last 30 minutes
+docker logs traefik --since 2024-01-15T10:00:00
+```
+
+**Search Logs for Specific Service:**
+
+```bash
+docker logs traefik 2>&1 | grep "my-app"
+```
+
+**Common Log Patterns:**
+
+- **Successful registration:**
+  ```
+  Router my-app@docker registered
+  ```
+
+- **Service discovery:**
+  ```
+  Adding route for service-name
+  ```
+
+- **Connection errors:**
+  ```
+  error: dial tcp <ip>:<port>: connect: connection refused
+  ```
+
+- **Certificate issues:**
+  ```
+  error: tls: failed to verify certificate
+  ```
+
+**Enable Debug Logging (if needed):**
+
+Edit `docker-compose.yml` and add to Traefik command:
+
+```yaml
+services:
+  traefik:
+    command:
+      # ... existing commands ...
+      - "--log.level=DEBUG"
+```
+
+Then restart Traefik:
+```bash
+docker compose restart traefik
+```
+
+**Warning:** Debug logging is very verbose. Only enable temporarily for troubleshooting, then revert to `INFO` or `ERROR` level.
+
+---
+
+### Quick Diagnostic Checklist
+
+When facing integration issues, run through this checklist:
+
+- [ ] Is Traefik running? (`docker ps | grep traefik`)
+- [ ] Does `traefik-proxy` network exist? (`docker network ls`)
+- [ ] Is your service running? (`docker compose ps`)
+- [ ] Is your service on the `traefik-proxy` network? (`docker inspect <container>`)
+- [ ] Are Traefik labels present and correctly spelled? (`docker inspect <container>`)
+- [ ] Does the service appear in Traefik dashboard? (Visit `https://traefik.docker.localhost`)
+- [ ] Is your application listening on the correct port inside the container?
+- [ ] Are there any errors in Traefik logs? (`docker logs traefik`)
+- [ ] Are there any errors in your service logs? (`docker compose logs`)
+- [ ] Is mkcert CA installed? (`mkcert -CAROOT`)
+
+**Still having issues?**
+
+1. Compare your configuration against the [Quick Start](#quick-start) example
+2. Test with a minimal Nginx container first to isolate the issue
+3. Check Traefik's official documentation for label syntax: https://doc.traefik.io/traefik/routing/routers/
+4. Review your specific framework's requirements in [Framework-Specific Examples](#framework-specific-examples)
 
 ## Best Practices
 
