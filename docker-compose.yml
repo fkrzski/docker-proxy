@@ -13,6 +13,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/etc/traefik/certs:ro
       - ./config:/etc/traefik/config:ro
+      - ./logs:/logs
+    environment:
+      - TRAEFIK_ACCESSLOG=${TRAEFIK_ACCESS_LOG_ENABLED}
+      - TRAEFIK_ACCESSLOG_FILEPATH=/logs/access.log
+      - TRAEFIK_ACCESSLOG_FORMAT=${TRAEFIK_ACCESS_LOG_FORMAT}
     networks:
       - traefik-proxy
     logging:
