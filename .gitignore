@@ -49,3 +49,6 @@ Desktop.ini
 .worktrees/
 .security-key
 logs/security/
+
+# Log files
+logs/

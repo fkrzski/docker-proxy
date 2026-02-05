@@ -13,8 +13,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/etc/traefik/certs:ro
       - ./config:/etc/traefik/config:ro
+      - ./logs:/logs
+    environment:
+      - TRAEFIK_ACCESSLOG=${TRAEFIK_ACCESS_LOG_ENABLED}
+      - TRAEFIK_ACCESSLOG_FILEPATH=/logs/access.log
+      - TRAEFIK_ACCESSLOG_FORMAT=${TRAEFIK_ACCESS_LOG_FORMAT}
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command:
       - "--api.dashboard=true"
       - "--providers.docker=true"
@@ -25,6 +35,9 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--ping=true"
+      - "--accesslog=${TRAEFIK_ACCESS_LOG_ENABLED:-false}"
+      - "--accesslog.filepath=/logs/access.log"
+      - "--accesslog.format=${TRAEFIK_ACCESS_LOG_FORMAT:-json}"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping"]
       interval: 30s
@@ -45,6 +58,11 @@ services:
       - redis
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -64,6 +82,11 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
@@ -92,6 +115,11 @@ services:
       start_period: 40s
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pma.rule=Host(`pma.docker.localhost`)"
