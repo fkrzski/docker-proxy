@@ -15,6 +15,11 @@ services:
       - ./config:/etc/traefik/config:ro
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command:
       - "--api.dashboard=true"
       - "--providers.docker=true"
@@ -45,6 +50,11 @@ services:
       - redis
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -64,6 +74,11 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
@@ -92,6 +107,11 @@ services:
       start_period: 40s
     networks:
       - traefik-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pma.rule=Host(`pma.docker.localhost`)"
