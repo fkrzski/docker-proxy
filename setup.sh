@@ -49,6 +49,35 @@ detect_os() {
     fi
 }
 
+# Get mkcert download URL based on OS and architecture
+get_mkcert_download_url() {
+    local url_os
+    local url_arch="$ARCH"
+
+    # Map OS_TYPE to mkcert URL format
+    case "$OS_TYPE" in
+        macos)
+            url_os="darwin"
+            ;;
+        wsl2|linux)
+            url_os="linux"
+            ;;
+        *)
+            log_error "Unsupported OS type: $OS_TYPE"
+            return 1
+            ;;
+    esac
+
+    # Map architecture to mkcert URL format
+    case "$url_arch" in
+        armv7)
+            url_arch="arm"
+            ;;
+    esac
+
+    MKCERT_URL="https://dl.filippo.io/mkcert/latest?for=${url_os}/${url_arch}"
+}
+
 log_info "Starting Local Docker Proxy setup..."
 
 # Detect OS and architecture
