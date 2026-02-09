@@ -84,6 +84,13 @@ log_info "Starting Local Docker Proxy setup..."
 detect_os
 log_info "Detected OS: $OS_TYPE, Architecture: $ARCH"
 
+# Display macOS-specific notes
+if [ "$OS_TYPE" = "macos" ]; then
+    log_info "Running on macOS - Docker Desktop is required for this setup."
+    log_warn "Please ensure Docker Desktop is installed and running before proceeding."
+    log_warn "Download from: https://www.docker.com/products/docker-desktop"
+fi
+
 # Detect package manager and set appropriate commands
 detect_package_manager() {
     if command -v apt &> /dev/null; then
@@ -233,6 +240,32 @@ else
     # Ensure it's installed in the trust store
     mkcert -install
 fi
+
+# Check if Docker is available
+if ! command -v docker &> /dev/null; then
+    log_error "Docker is not installed or not in PATH."
+    if [ "$OS_TYPE" = "macos" ]; then
+        log_error "Please install Docker Desktop for Mac:"
+        log_error "  https://www.docker.com/products/docker-desktop"
+    else
+        log_error "Please install Docker for your platform."
+    fi
+    exit 1
+fi
+
+# Check if Docker daemon is running
+if ! docker info &> /dev/null; then
+    log_error "Docker daemon is not running."
+    if [ "$OS_TYPE" = "macos" ]; then
+        log_error "Please start Docker Desktop application and wait for it to be ready."
+        log_warn "You can start Docker Desktop from Applications or the menu bar."
+    else
+        log_error "Please start the Docker service."
+    fi
+    exit 1
+fi
+
+log_info "Docker is available and running."
 
 # 3. Create network
 if ! docker network inspect traefik-proxy &> /dev/null;
