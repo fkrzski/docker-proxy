@@ -26,7 +26,34 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Detect operating system and architecture
+detect_os() {
+    # Detect architecture
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+        armv7l) ARCH="armv7" ;;
+        *) ARCH="$ARCH" ;;
+    esac
+
+    # Detect OS type
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        OS_TYPE="macos"
+    elif [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+        OS_TYPE="wsl2"
+    elif [[ "$(uname -s)" == "Linux" ]]; then
+        OS_TYPE="linux"
+    else
+        OS_TYPE="unknown"
+    fi
+}
+
 log_info "Starting Local Docker Proxy setup..."
+
+# Detect OS and architecture
+detect_os
+log_info "Detected OS: $OS_TYPE, Architecture: $ARCH"
 
 # Detect package manager and set appropriate commands
 detect_package_manager() {
