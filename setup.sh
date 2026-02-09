@@ -193,15 +193,26 @@ else
     log_info "NSS tools dependency is already installed."
 fi
 
-# 2. Install mkcert
-if ! command -v mkcert &> /dev/null;
-    then
-    log_info "Installing mkcert..."
+# Install mkcert using appropriate method
+install_mkcert() {
+    # On macOS with Homebrew, prefer brew installation
+    if [ "$OS_TYPE" = "macos" ] && [ "$PKG_MANAGER" = "brew" ]; then
+        log_info "Installing mkcert via Homebrew..."
+        if brew install mkcert; then
+            log_success "mkcert installed via Homebrew."
+            return 0
+        else
+            log_warn "Homebrew installation failed. Falling back to direct download..."
+        fi
+    fi
+
+    # Fallback: Direct download method
+    log_info "Installing mkcert via direct download..."
 
     # Get platform-specific download URL
     if ! get_mkcert_download_url; then
         log_error "Failed to determine mkcert download URL for this platform."
-        exit 1
+        return 1
     fi
 
     log_info "Downloading mkcert from: $MKCERT_URL"
@@ -209,6 +220,12 @@ if ! command -v mkcert &> /dev/null;
     chmod +x mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH}
     sudo mv mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH} /usr/local/bin/mkcert
 
+    log_success "mkcert installed via direct download."
+}
+
+# 2. Install mkcert
+if ! command -v mkcert &> /dev/null; then
+    install_mkcert
     log_info "Initializing local CA..."
     mkcert -install
 else
