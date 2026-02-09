@@ -51,16 +51,15 @@ detect_os() {
 
 # Get mkcert download URL based on OS and architecture
 get_mkcert_download_url() {
-    local url_os
     local url_arch="$ARCH"
 
     # Map OS_TYPE to mkcert URL format
     case "$OS_TYPE" in
         macos)
-            url_os="darwin"
+            MKCERT_OS="darwin"
             ;;
         wsl2|linux)
-            url_os="linux"
+            MKCERT_OS="linux"
             ;;
         *)
             log_error "Unsupported OS type: $OS_TYPE"
@@ -75,7 +74,8 @@ get_mkcert_download_url() {
             ;;
     esac
 
-    MKCERT_URL="https://dl.filippo.io/mkcert/latest?for=${url_os}/${url_arch}"
+    MKCERT_ARCH="$url_arch"
+    MKCERT_URL="https://dl.filippo.io/mkcert/latest?for=${MKCERT_OS}/${MKCERT_ARCH}"
 }
 
 log_info "Starting Local Docker Proxy setup..."
@@ -197,10 +197,18 @@ fi
 if ! command -v mkcert &> /dev/null;
     then
     log_info "Installing mkcert..."
-    curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
-    chmod +x mkcert-v*-linux-amd64
-    sudo mv mkcert-v*-linux-amd64 /usr/local/bin/mkcert
-    
+
+    # Get platform-specific download URL
+    if ! get_mkcert_download_url; then
+        log_error "Failed to determine mkcert download URL for this platform."
+        exit 1
+    fi
+
+    log_info "Downloading mkcert from: $MKCERT_URL"
+    curl -JLO "$MKCERT_URL"
+    chmod +x mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH}
+    sudo mv mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH} /usr/local/bin/mkcert
+
     log_info "Initializing local CA..."
     mkcert -install
 else
