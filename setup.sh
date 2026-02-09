@@ -307,3 +307,29 @@ docker compose up -d
 
 log_success "Setup complete."
 echo -e "Dashboard available at: https://traefik.docker.localhost"
+
+# Display WSL2-specific post-installation instructions
+if [ "$OS_TYPE" = "wsl2" ]; then
+    echo ""
+    log_warn "WSL2 ADDITIONAL STEP REQUIRED:"
+    log_warn "To trust certificates in Windows browsers (Edge, Chrome, Firefox on Windows),"
+    log_warn "you need to install the mkcert root CA certificate in Windows:"
+    echo ""
+    log_info "1. Find the mkcert root CA certificate location:"
+    log_info "   Run: mkcert -CAROOT"
+    echo ""
+    log_info "2. Copy the rootCA.pem file to Windows:"
+    log_info "   Example: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/YourUsername/Downloads/"
+    echo ""
+    log_info "3. In Windows, double-click the rootCA.pem file"
+    log_info "   - Click 'Install Certificate'"
+    log_info "   - Select 'Local Machine' and click Next"
+    log_info "   - Select 'Place all certificates in the following store'"
+    log_info "   - Click 'Browse' and select 'Trusted Root Certification Authorities'"
+    log_info "   - Click Next, then Finish"
+    echo ""
+    log_info "4. Restart your Windows browsers for changes to take effect"
+    echo ""
+    log_warn "Note: Certificates in WSL2 Linux are automatically trusted,"
+    log_warn "but Windows browsers need the separate installation step above."
+fi
