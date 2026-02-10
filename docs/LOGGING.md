@@ -24,17 +24,18 @@ This guide explains how to manage, view, and troubleshoot logs in the Local Dock
 
 ## Overview
 
-The Local Docker Proxy implements a two-tier logging strategy:
+The Local Docker Proxy implements unified logging through Docker's `json-file` logging driver:
 
-1. **Container Logs**: All containers (Traefik, Redis, MySQL, phpMyAdmin) use Docker's `json-file` logging driver with automatic rotation. These logs capture stdout/stderr from each service.
+1. **Container Logs**: All containers (Traefik, Redis, MySQL, phpMyAdmin) use Docker's `json-file` logging driver with automatic rotation and compression. These logs capture stdout/stderr from each service.
 
-2. **Traefik Access Logs** (Optional): Detailed HTTP request logs written to a file, useful for debugging routing issues and monitoring traffic patterns.
+2. **Traefik Access Logs** (Optional): When enabled, detailed HTTP request logs are written to stdout in JSON format, captured and rotated by Docker's logging driver alongside other Traefik logs.
 
 **Key Benefits:**
-- ✅ Automatic log rotation prevents disk space exhaustion
+- ✅ Automatic log rotation and compression prevents disk space exhaustion
 - ✅ Structured JSON format for easy parsing
 - ✅ Built-in Docker tooling for log access
 - ✅ Optional detailed request tracing without performance impact
+- ✅ All logs managed consistently by Docker's logging driver
 
 ## Log Rotation Configuration
 
@@ -56,25 +57,29 @@ This happens **transparently** without interrupting the container or requiring c
 
 ### Configuration Details
 
-The logging configuration is defined in `docker-compose.yml`:
+The logging configuration is defined once in `docker-compose.yml` using a YAML anchor for consistency:
 
 ```yaml
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
 services:
   traefik:
     # ... other configuration ...
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 ```
 
 **Configuration Options:**
 - `driver: "json-file"`: Uses Docker's default JSON logging driver
 - `max-size: "10m"`: Rotates when file reaches 10 megabytes
 - `max-file: "3"`: Keeps up to 3 log files (current + 2 rotated)
+- `compress: "true"`: Automatically compresses rotated logs
 
-This configuration is applied to all four services: `traefik`, `redis`, `mysql`, and `pma`.
+This configuration is applied to all four services: `traefik`, `redis`, `mysql`, and `pma` using the YAML anchor `*default-logging`.
 
 ### Disk Space Management
 
@@ -86,7 +91,7 @@ This configuration is applied to all four services: `traefik`, `redis`, `mysql`,
 
 **Total Proxy Logs**: ~120 MB maximum for all container logs combined.
 
-**Traefik Access Logs** (if enabled): Not automatically rotated by Docker. See [Traefik Access Logs](#traefik-access-logs) for manual rotation strategies.
+**Note**: When Traefik access logs are enabled, they are included in Traefik's container logs and subject to the same rotation limits (30 MB max).
 
 ## Viewing Container Logs
 
@@ -179,7 +184,7 @@ docker compose logs --follow --timestamps --tail 50
 
 ## Traefik Access Logs
 
-Traefik access logs provide detailed information about every HTTP request routed through the proxy. They are **disabled by default** to minimize disk usage and improve performance.
+Traefik access logs provide detailed information about every HTTP request routed through the proxy. They are **disabled by default** to minimize disk usage and improve performance. When enabled, access logs are written to stdout and captured by Docker's logging driver alongside other Traefik logs.
 
 ### Enabling Access Logs
 
@@ -199,35 +204,39 @@ Traefik access logs provide detailed information about every HTTP request routed
    docker compose up -d traefik
    ```
 
-3. **Verify logs are being written:**
+3. **Verify access logs are being generated:**
 
    ```bash
-   ls -lh logs/access.log
+   # Generate some traffic
+   curl -k https://traefik.docker.localhost/
+
+   # Check for access log entries
+   docker logs traefik --tail 20 | grep -i "clientaddr\|requestpath"
    ```
 
-   You should see the `access.log` file growing as requests come in.
+   You should see JSON-formatted access log entries mixed with regular Traefik logs.
 
 ### Viewing Access Logs
 
-Access logs are stored in the `logs/` directory:
+Access logs are written to stdout and captured by Docker's logging driver, viewable via `docker logs`:
 
 ```bash
-# View entire access log
-cat logs/access.log
+# View all Traefik logs (includes access logs when enabled)
+docker logs traefik
 
 # View last 50 entries
-tail -50 logs/access.log
+docker logs traefik --tail 50
 
 # Follow in real-time
-tail -f logs/access.log
+docker logs traefik --follow
 
-# View with timestamps (already included in JSON format)
-cat logs/access.log | head -10
+# View with timestamps
+docker logs traefik --timestamps --tail 20
 ```
 
 ### Parsing JSON Logs
 
-When using `TRAEFIK_ACCESS_LOG_FORMAT=json` (recommended), logs are structured JSON objects. Use `jq` for powerful parsing:
+When using `TRAEFIK_ACCESS_LOG_FORMAT=json` (recommended), access logs are structured JSON objects. Use `jq` for powerful parsing:
 
 **Installing jq:**
 ```bash
@@ -241,30 +250,32 @@ brew install jq
 **Common jq Queries:**
 
 ```bash
-# Pretty-print the last log entry
-tail -1 logs/access.log | jq '.'
+# Pretty-print access log entries (filter out non-JSON lines)
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath != null)'
 
 # Extract only the request path and status code
-cat logs/access.log | jq '{path: .RequestPath, status: .DownstreamStatus}'
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath != null) | {path: .RequestPath, status: .DownstreamStatus}'
 
 # Filter only 404 errors
-cat logs/access.log | jq 'select(.DownstreamStatus == 404)'
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamStatus == 404)'
 
 # Count requests by status code
-cat logs/access.log | jq -r '.DownstreamStatus' | sort | uniq -c | sort -rn
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamStatus != null) | .DownstreamStatus' | sort | uniq -c | sort -rn
 
 # Find requests to a specific domain
-cat logs/access.log | jq 'select(.RequestHost == "my-app.docker.localhost")'
+docker logs traefik | jq -R 'fromjson? | select(.RequestHost == "my-app.docker.localhost")'
 
-# Show requests with duration > 1 second
-cat logs/access.log | jq 'select(.Duration > 1000000000)'
+# Show requests with duration > 1 second (1,000,000,000 nanoseconds)
+docker logs traefik | jq -R 'fromjson? | select(.Duration > 1000000000)'
 
 # Extract client IPs
-cat logs/access.log | jq -r '.ClientHost' | sort | uniq -c | sort -rn
+docker logs traefik | jq -R 'fromjson? | select(.ClientHost != null) | .ClientHost' | sort | uniq -c | sort -rn
 
 # Show all backend servers used
-cat logs/access.log | jq -r '.DownstreamServer' | sort | uniq
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamServer != null) | .DownstreamServer' | sort | uniq
 ```
+
+**Note**: The `-R 'fromjson?'` pattern safely handles mixed log output (regular Traefik logs + JSON access logs). It attempts to parse each line as JSON and skips non-JSON lines.
 
 **Example JSON Log Entry:**
 ```json
@@ -308,75 +319,46 @@ cat logs/access.log | jq -r '.DownstreamServer' | sort | uniq
 
 **Debugging Routing Issues:**
 ```bash
-# Check if requests are reaching Traefik
-tail -f logs/access.log | jq '{host: .RequestHost, path: .RequestPath, status: .DownstreamStatus}'
+# Check if requests are reaching Traefik (follow in real-time)
+docker logs traefik --follow | jq -R 'fromjson? | select(.RequestPath != null) | {host: .RequestHost, path: .RequestPath, status: .DownstreamStatus}'
 
 # Find which backend served a request
-cat logs/access.log | jq 'select(.RequestPath == "/api/users") | .DownstreamServer'
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath == "/api/users") | .DownstreamServer'
 
 # Check for routing errors (502, 503, 504)
-cat logs/access.log | jq 'select(.DownstreamStatus >= 502 and .DownstreamStatus <= 504)'
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamStatus >= 502 and .DownstreamStatus <= 504)'
 ```
 
 **Performance Analysis:**
 ```bash
-# Find slow requests (> 5 seconds)
-cat logs/access.log | jq 'select(.Duration > 5000000000) | {host: .RequestHost, path: .RequestPath, duration_s: (.Duration / 1000000000)}'
+# Find slow requests (> 5 seconds = 5,000,000,000 nanoseconds)
+docker logs traefik | jq -R 'fromjson? | select(.Duration > 5000000000) | {host: .RequestHost, path: .RequestPath, duration_s: (.Duration / 1000000000)}'
 
 # Average response time by endpoint
-cat logs/access.log | jq -r '"\(.RequestPath) \(.Duration)"' | awk '{sum[$1]+=$2; count[$1]++} END {for (path in sum) print path, sum[path]/count[path]/1000000000 "s"}'
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath != null) | "\(.RequestPath) \(.Duration)"' | awk '{sum[$1]+=$2; count[$1]++} END {for (path in sum) print path, sum[path]/count[path]/1000000000 "s"}'
 ```
 
 **Security Monitoring:**
 ```bash
 # List all unique client IPs
-cat logs/access.log | jq -r '.ClientHost' | sort | uniq
+docker logs traefik | jq -R 'fromjson? | select(.ClientHost != null) | .ClientHost' | sort | uniq
 
 # Find requests with authentication errors (401)
-cat logs/access.log | jq 'select(.DownstreamStatus == 401)'
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamStatus == 401)'
 
 # Check for suspicious paths
-cat logs/access.log | jq 'select(.RequestPath | test("admin|config|env|\\.\\."))'
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath != null) | select(.RequestPath | test("admin|config|env|\\.\\."))'
 ```
 
 ### Access Log Rotation
 
-**Important:** Traefik access logs in the `logs/` directory are **NOT automatically rotated** by Docker. For long-running installations with access logs enabled, consider:
+Access logs are written to stdout and automatically rotated by Docker's logging driver with the same settings as other container logs:
 
-**Option 1: Manual Rotation**
-```bash
-# Stop Traefik
-docker compose stop traefik
+- **Max File Size**: 10 MB per file
+- **Max Files**: 3 files retained
+- **Compression**: Enabled
 
-# Rotate the log file
-mv logs/access.log logs/access.log.$(date +%Y%m%d-%H%M%S)
-
-# Optionally compress old logs
-gzip logs/access.log.*
-
-# Start Traefik (will create a new access.log)
-docker compose start traefik
-```
-
-**Option 2: Logrotate (Linux)**
-
-Create `/etc/logrotate.d/traefik-proxy`:
-
-```
-/path/to/docker-proxy/logs/access.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    postrotate
-        docker compose -f /path/to/docker-proxy/docker-compose.yml restart traefik
-    endscript
-}
-```
-
-**Option 3: Disable When Not Needed**
+**To disable access logs when not needed:**
 
 Set `TRAEFIK_ACCESS_LOG_ENABLED=false` in `.env` and restart:
 
@@ -384,22 +366,24 @@ Set `TRAEFIK_ACCESS_LOG_ENABLED=false` in `.env` and restart:
 docker compose up -d traefik
 ```
 
-Access logs are typically only needed during active debugging.
+Access logs are typically only needed during active debugging and add volume to the container logs.
 
 ## Log File Locations
 
-**Container Logs:**
+**All Logs (Container + Access):**
 - Managed by Docker daemon
-- Location: `/var/lib/docker/containers/<container-id>/<container-id>-json.log`
+- Physical location: `/var/lib/docker/containers/<container-id>/<container-id>-json.log`
 - Access via: `docker logs <container-name>` (recommended)
 - Rotation: Automatic (configured in docker-compose.yml)
+- Compression: Enabled for rotated files
 
-**Traefik Access Logs:**
-- Location: `./logs/access.log` (relative to project root)
-- Access via: Standard file tools (`cat`, `tail`, `less`)
-- Rotation: Manual (see [Access Log Rotation](#access-log-rotation))
+**Traefik Access Logs** (when enabled):
+- Written to stdout alongside regular Traefik logs
+- Captured by Docker's logging driver
+- Same rotation policy as container logs (10 MB per file, 3 files max)
+- Access via: `docker logs traefik`
 
-**Note:** The `logs/` directory is git-ignored. Only `logs/.gitkeep` is tracked to preserve the directory structure.
+**Note:** All logs are managed exclusively through Docker's logging driver. There are no separate log files in the project directory.
 
 ## Troubleshooting
 
@@ -427,26 +411,26 @@ docker compose ps
 docker compose restart traefik && docker logs traefik --follow
 ```
 
-### Access Logs Not Created
+### Access Logs Not Appearing
 
-**Symptom:** `logs/access.log` does not exist after enabling.
+**Symptom:** No access log entries appear in `docker logs traefik` output after enabling.
 
 **Solutions:**
 ```bash
-# Verify environment variable
-docker exec traefik env | grep TRAEFIK_ACCESSLOG
+# Verify environment variable is set correctly
+docker exec traefik ps aux | grep accesslog
 
-# Check Traefik is using the correct configuration
-docker logs traefik | grep -i "access log"
+# Check Traefik command-line flags
+docker inspect traefik | grep -i accesslog
 
-# Verify volume mount
-docker inspect traefik | grep -A 5 "Mounts"
-
-# Restart Traefik
+# Restart Traefik to apply changes
 docker compose up -d traefik
 
-# Generate traffic to trigger log creation
+# Generate traffic to trigger access logs
 curl -k https://traefik.docker.localhost
+
+# Check logs again (access logs are JSON, mixed with regular logs)
+docker logs traefik --tail 50 | grep RequestPath
 ```
 
 ### Disk Space Warnings
@@ -458,11 +442,11 @@ curl -k https://traefik.docker.localhost
 # Check size of all container logs
 sudo du -sh /var/lib/docker/containers/*/
 
-# Check Traefik access log size
-du -sh logs/access.log
-
 # Check total Docker disk usage
 docker system df -v
+
+# Check individual container log sizes
+docker ps --format '{{.Names}}' | xargs -I {} sh -c 'echo -n "{}: " && sudo du -sh /var/lib/docker/containers/$(docker inspect -f "{{.Id}}" {})/ 2>/dev/null | cut -f1'
 ```
 
 **Solutions:**
@@ -470,39 +454,42 @@ docker system df -v
 # Clean up old Docker resources
 docker system prune -a
 
-# Reduce log retention (edit docker-compose.yml)
+# Reduce log retention (edit docker-compose.yml x-logging anchor)
 # Change max-size to "5m" or max-file to "2"
 
-# Disable Traefik access logs
+# Disable Traefik access logs to reduce log volume
 # Set TRAEFIK_ACCESS_LOG_ENABLED=false in .env
+docker compose up -d traefik
 
-# Manually rotate access logs (if enabled)
-mv logs/access.log logs/access.log.old && gzip logs/access.log.old
-docker compose restart traefik
+# Recreate containers to reset logs
+docker compose down
+docker compose up -d
 ```
 
 ### JSON Parsing Errors
 
-**Symptom:** `jq` fails with "parse error" when reading access logs.
+**Symptom:** `jq` fails with "parse error" when parsing Traefik logs.
 
 **Causes:**
-1. Log file is incomplete (currently being written)
-2. Mixed format logs (changed format while Traefik was running)
-3. Corrupted log entry
+1. Mixed log output (regular Traefik logs + JSON access logs)
+2. Changed format while Traefik was running
+3. Attempting to parse non-JSON log lines
 
 **Solutions:**
 ```bash
-# Check if file is still being written
-lsof logs/access.log
+# Use the safe parsing pattern that skips non-JSON lines
+docker logs traefik | jq -R 'fromjson? | select(.RequestPath != null)'
 
-# Validate JSON structure
-cat logs/access.log | jq empty
+# This pattern:
+# -R: Read each line as a raw string
+# fromjson?: Attempt to parse JSON (? suppresses errors for non-JSON lines)
+# select(.RequestPath != null): Filter only access log entries
 
-# Find the problematic line
-cat logs/access.log | jq -c . 2>&1 | grep "parse error" -B 1
+# To debug, see what's not parsing:
+docker logs traefik | jq -R 'fromjson? | select(. == null)'
 
-# Skip invalid lines
-cat logs/access.log | while read line; do echo "$line" | jq . 2>/dev/null; done
+# Validate a specific log section
+docker logs traefik --tail 100 | jq -R 'fromjson? | select(.DownstreamStatus != null)'
 ```
 
 ### Logs Contain Sensitive Data
@@ -520,15 +507,14 @@ cat logs/access.log | while read line; do echo "$line" | jq . 2>/dev/null; done
 
 **Remediation:**
 ```bash
-# Rotate logs immediately
-docker compose stop traefik
-rm logs/access.log
-docker compose start traefik
-
-# For container logs, prune and recreate
+# Recreate containers to clear all logs
 docker compose down
-docker system prune -a
 docker compose up -d
+
+# Or, manually remove container log files (requires sudo)
+docker compose stop
+sudo rm -rf /var/lib/docker/containers/$(docker inspect -f '{{.Id}}' traefik)/*-json.log*
+docker compose start
 ```
 
 ## Best Practices
@@ -545,7 +531,7 @@ TRAEFIK_ACCESS_LOG_ENABLED=true
 TRAEFIK_ACCESS_LOG_ENABLED=false
 ```
 
-**Reason:** Access logs grow quickly in production and can fill disks despite container log rotation.
+**Reason:** Access logs add significant volume to container logs (each HTTP request generates a log entry). While they are automatically rotated by Docker's logging driver, they can quickly fill the allocated log space (30 MB max).
 
 ### 2. Monitor Disk Usage Regularly
 
@@ -558,8 +544,8 @@ docker system df
 # Detailed view
 docker system df -v
 
-# Check access log size
-du -sh logs/
+# Check container log sizes
+docker ps --format '{{.Names}}' | xargs -I {} sh -c 'echo -n "{}: " && docker inspect {} | jq -r ".[0].LogPath" | xargs sudo du -sh 2>/dev/null'
 ```
 
 ### 3. Use Structured JSON Format
@@ -569,10 +555,10 @@ du -sh logs/
 **Example:**
 ```bash
 # JSON format enables powerful queries
-cat logs/access.log | jq 'select(.DownstreamStatus >= 500)'
+docker logs traefik | jq -R 'fromjson? | select(.DownstreamStatus >= 500)'
 
-# Common format is harder to parse
-cat logs/access.log | awk '$9 >= 500'
+# Common format would be harder to parse when mixed with regular logs
+docker logs traefik | awk '$9 >= 500'  # Less reliable with mixed output
 ```
 
 ### 4. Leverage Filtering Instead of Full Logs
@@ -586,15 +572,16 @@ docker logs traefik --since 1h | grep error
 docker logs traefik --tail 100 | grep "my-app"
 ```
 
-### 5. Automate Log Rotation for Access Logs
+### 5. Log Rotation is Automatic
 
-**Recommendation:** If you keep access logs enabled long-term, set up logrotate or a cron job.
+**Good News:** All logs (including access logs) are automatically rotated by Docker's logging driver.
 
-**Example cron job (runs daily):**
-```bash
-# Add to crontab: crontab -e
-0 0 * * * cd /path/to/docker-proxy && mv logs/access.log logs/access.log.$(date +\%Y\%m\%d) && docker compose restart traefik && gzip logs/access.log.*
-```
+**Configuration:**
+- Max size: 10 MB per file
+- Max files: 3 files retained
+- Compression: Enabled for rotated files
+
+**No manual rotation needed!** Docker handles everything automatically.
 
 ### 6. Correlate Logs Across Services
 
