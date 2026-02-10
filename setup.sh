@@ -34,7 +34,11 @@ detect_os() {
         x86_64) ARCH="amd64" ;;
         aarch64|arm64) ARCH="arm64" ;;
         armv7l) ARCH="armv7" ;;
-        *) ARCH="$ARCH" ;;
+        *)
+            log_error "Unsupported architecture: $ARCH"
+            log_error "Supported architectures: x86_64, aarch64, arm64, armv7l"
+            exit 1
+            ;;
     esac
 
     # Detect OS type
@@ -94,11 +98,16 @@ get_windows_username() {
                 if [ -d "$dir" ]; then
                     local dirname=$(basename "$dir")
                     # Skip system directories
-                    if [ "$dirname" != "Public" ] && [ "$dirname" != "Default" ] && \
-                       [ "$dirname" != "All Users" ] && [ "$dirname" != "Default User" ]; then
-                        echo "$dirname"
-                        return 0
-                    fi
+                    case "$dirname" in
+                        Public|Default|"All Users"|"Default User")
+                            # Skip system directories
+                            ;;
+                        *)
+                            # Found a user directory
+                            echo "$dirname"
+                            return 0
+                            ;;
+                    esac
                 fi
             done
         fi
@@ -251,7 +260,7 @@ install_mkcert() {
     fi
 
     log_info "Downloading mkcert from: $MKCERT_URL"
-    TEMP_MKCERT="./mkcert-temp-${MKCERT_OS}-${MKCERT_ARCH}"
+    TEMP_MKCERT=$(mktemp)
     curl -Lo "$TEMP_MKCERT" "$MKCERT_URL"
     chmod +x "$TEMP_MKCERT"
     sudo mv "$TEMP_MKCERT" /usr/local/bin/mkcert
@@ -354,7 +363,8 @@ if [ "$OS_TYPE" = "wsl2" ]; then
         log_info "2. Copy the rootCA.pem file to Windows:"
         log_info "   Run: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/${WIN_USERNAME}/Downloads/"
     else
-        log_info "2. Copy the rootCA.pem file to Windows (replace YourWindowsUsername with your actual Windows username):"
+        log_warn "2. Copy the rootCA.pem file to Windows:"
+        log_warn "   Could not auto-detect Windows username. Replace 'YourWindowsUsername' below with your actual Windows username."
         log_info "   Example: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/YourWindowsUsername/Downloads/"
     fi
     echo ""

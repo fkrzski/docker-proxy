@@ -262,12 +262,23 @@ test_ca_trust() {
         return 0
     fi
 
-    # Check if CA is in system keychain
+    # Check if CA is in system keychain or user login keychain
+    FOUND_IN_SYSTEM=false
+    FOUND_IN_LOGIN=false
+
     if security find-certificate -c "mkcert" -a /Library/Keychains/System.keychain &>/dev/null; then
+        FOUND_IN_SYSTEM=true
         log_pass "mkcert CA found in System Keychain"
-    else
-        log_warn "mkcert CA not found in System Keychain"
-        log_info "The CA might be in user keychain or not yet installed"
+    fi
+
+    if security find-certificate -c "mkcert" -a ~/Library/Keychains/login.keychain-db &>/dev/null; then
+        FOUND_IN_LOGIN=true
+        log_pass "mkcert CA found in login keychain"
+    fi
+
+    if [ "$FOUND_IN_SYSTEM" = false ] && [ "$FOUND_IN_LOGIN" = false ]; then
+        log_warn "mkcert CA not found in System Keychain or login keychain"
+        log_info "Run 'mkcert -install' to install the CA certificate"
     fi
 }
 
