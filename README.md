@@ -6,11 +6,15 @@ It runs a single Traefik container handling routing for all local projects via c
 
 ## Prerequisites
 
-- **OS:** Linux (Script optimized for Debian/Ubuntu derivatives).
+- **OS:** Linux, macOS, or Windows WSL2
+  - Linux: Tested on Debian/Ubuntu derivatives (also supports Fedora, Arch, Alpine)
+  - macOS: Requires Docker Desktop for Mac
+  - Windows: Requires WSL2 with Docker Desktop integration
 - **Software:**
   - Docker Engine & Docker Compose
   - `curl`
-  - `libnss3-tools` (Required for browser certificate trust management)
+  - Package manager: apt, dnf, yum, pacman, brew, or apk
+  - (NSS tools and mkcert will be installed automatically by setup.sh)
 
 ## Installation
 

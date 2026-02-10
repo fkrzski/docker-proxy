@@ -4878,183 +4878,78 @@ If you want to use Traefik in production, you need to:
 
 ### Does this work on Windows and macOS?
 
-**Yes, with manual setup.** The automated `setup.sh` script is Linux-only, but the proxy itself works on all platforms.
+**Yes!** The automated `setup.sh` script now supports Linux, macOS, and Windows WSL2.
 
 #### Platform Compatibility Matrix
 
 | Feature | Linux | macOS | Windows (WSL2) | Windows (Native) |
 |---------|-------|-------|----------------|------------------|
+| Automated setup.sh | ✅ | ✅ | ✅ | ⚠️ Manual |
+| mkcert auto-install | ✅ | ✅ | ✅ | ⚠️ Manual |
 | Traefik proxy | ✅ | ✅ | ✅ | ✅ |
-| Docker networking | ✅ | ✅ | ✅ | ✅ |
-| mkcert CA | ✅ | ✅ | ✅ | ✅ |
-| Automated setup | ✅ | ❌ | ⚠️ (partial) | ❌ |
-| `.localhost` domains | ✅ | ✅ | ✅ | ✅ |
+| HTTPS certificates | ✅ | ✅ | ✅ | ✅ |
 
-#### macOS Setup
+#### Setup Instructions by Platform
 
-1. **Install mkcert:**
-   ```bash
-   brew install mkcert
-   mkcert -install
-   ```
-
-2. **Create Docker network:**
-   ```bash
-   docker network create traefik-proxy
-   ```
-
-3. **Generate certificates:**
-   ```bash
-   mkcert -key-file certs/local-key.pem \
-     -cert-file certs/local-cert.pem \
-     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-   chmod 644 certs/local-cert.pem certs/local-key.pem
-   ```
-
-4. **Copy environment file:**
-   ```bash
-   cp .env.example .env
-   ```
-
-5. **Start the proxy:**
-   ```bash
-   docker compose up -d
-   ```
-
-**macOS-specific notes:**
-- Docker Desktop required (not native Docker Engine)
-- Network performance is slower than Linux (VM overhead)
-- Domain resolution works out of the box
-
-#### Windows Setup (WSL2 - Recommended)
-
-**Prerequisites:** WSL2 with Ubuntu and Docker Desktop for Windows
-
-1. **Inside WSL2 terminal:**
-   ```bash
-   # Install mkcert
-   sudo apt update
-   sudo apt install -y libnss3-tools curl
-   curl -L https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64 -o mkcert
-   chmod +x mkcert
-   sudo mv mkcert /usr/local/bin/
-
-   # Install CA
-   mkcert -install
-   ```
-
-2. **Create network:**
-   ```bash
-   docker network create traefik-proxy
-   ```
-
-3. **Generate certificates:**
-   ```bash
-   cd /path/to/docker-proxy
-   mkdir -p certs
-   mkcert -key-file certs/local-key.pem \
-     -cert-file certs/local-cert.pem \
-     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-   chmod 644 certs/local-cert.pem certs/local-key.pem
-   ```
-
-4. **Copy and edit environment:**
-   ```bash
-   cp .env.example .env
-   nano .env  # Configure as needed
-   ```
-
-5. **Start proxy:**
-   ```bash
-   docker compose up -d
-   ```
-
-**Access from Windows browser:**
-- URLs work in Windows browsers (Edge, Chrome)
-- Certificate is trusted if mkcert installed in WSL2
-- May need to import CA to Windows certificate store:
-  ```bash
-  # In WSL2, find CA location
-  mkcert -CAROOT
-  # Copy rootCA.pem to Windows and import to "Trusted Root Certification Authorities"
-  ```
-
-#### Windows Setup (Native Docker Desktop)
-
-1. **Install mkcert for Windows:**
-   - Download from https://github.com/FiloSottile/mkcert/releases
-   - Use PowerShell as Administrator:
-     ```powershell
-     choco install mkcert  # If using Chocolatey
-     # OR manually download mkcert-v1.4.4-windows-amd64.exe
-     ```
-
-2. **Install local CA:**
-   ```powershell
-   mkcert -install
-   ```
-
-3. **Create Docker network:**
-   ```powershell
-   docker network create traefik-proxy
-   ```
-
-4. **Generate certificates:**
-   ```powershell
-   # In PowerShell, navigate to docker-proxy directory
-   cd C:\path\to\docker-proxy
-   mkdir certs -ErrorAction SilentlyContinue
-   mkcert -key-file certs/local-key.pem `
-     -cert-file certs/local-cert.pem `
-     "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-   ```
-
-5. **Copy environment file:**
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-6. **Start proxy:**
-   ```powershell
-   docker compose up -d
-   ```
-
-**Windows-specific notes:**
-- Use PowerShell (not CMD)
-- File paths use backslashes: `C:\path\to\project`
-- WSL2 backend recommended for better performance
-
-#### Platform-Specific Issues
+**Linux (Ubuntu/Debian/Fedora/Arch):**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+That's it! The script automatically detects your package manager and installs everything.
 
 **macOS:**
-- **Issue:** "Connection refused" errors
-- **Fix:** Ensure Docker Desktop is running and Traefik container started
-- **Issue:** Slow response times
-- **Fix:** Expected - Docker on macOS uses VM (slower than Linux)
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+- If Homebrew is installed, the script uses it to install mkcert (preferred)
+- If Homebrew is not available, downloads mkcert binary directly
+- Certificates are automatically trusted in macOS Keychain
+- Requires Docker Desktop for Mac to be running
 
-**Windows:**
-- **Issue:** Certificate not trusted in browser
-- **Fix:** Import mkcert CA to Windows certificate store manually
-- **Issue:** Path issues in compose.yml
-- **Fix:** Use forward slashes even on Windows: `./certs:/certs`
+**Windows WSL2 (Recommended):**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+- Works in any WSL2 distribution (Ubuntu, Debian, etc.)
+- Automatically detects WSL2 environment
+- Certificates trusted in WSL2 browsers automatically
+- Additional step: Import CA to Windows certificate store for Windows browsers (instructions displayed after setup)
+- Requires Docker Desktop with WSL2 integration
+
+**Windows (Native Docker Desktop):**
+Manual setup required - follow the manual installation steps in the main README.
+
+#### Platform-Specific Notes
+
+**macOS:**
+- Docker Desktop must be installed and running before running setup.sh
+- Script checks for Docker Desktop availability and provides helpful error messages
+- Homebrew is preferred but not required
+
+**WSL2:**
+- After setup completes, additional instructions are displayed for trusting certificates in Windows browsers
+- Copy the mkcert root CA to Windows and import to "Trusted Root Certification Authorities"
+- Linux browsers (Firefox, Chrome in WSL2) trust certificates automatically
 
 **Cross-platform development:**
-If your team uses mixed platforms:
-- ✅ Keep paths relative in compose files (`./certs` not `/home/user/certs`)
-- ✅ Document platform-specific setup in your project README
-- ✅ Use `.env` files for platform-specific variables
-- ✅ Test on all platforms before committing
+If your team uses mixed platforms, everyone can now use the same setup.sh script!
+- ✅ All platforms use the same setup command
+- ✅ Script automatically detects platform and adjusts accordingly
+- ✅ Clear error messages if Docker or dependencies are missing
 
 #### Platform Recommendation
 
-| Scenario | Recommended Platform |
-|----------|---------------------|
-| Personal development | Linux (best performance) |
-| macOS required | Use Docker Desktop (works well) |
-| Windows required | WSL2 + Docker Desktop (best Windows experience) |
-| Team/mixed platforms | Document manual setup for each platform |
+| Scenario | Recommended Platform | Setup Experience |
+|----------|---------------------|------------------|
+| Linux development | Native Linux | ⭐⭐⭐⭐⭐ Best |
+| macOS required | Docker Desktop | ⭐⭐⭐⭐ Great |
+| Windows required | WSL2 + Docker Desktop | ⭐⭐⭐⭐ Great |
+| Native Windows | Manual setup | ⭐⭐⭐ Good |
 
-**Bottom line:** The proxy works on all platforms, but Linux provides the smoothest experience. The `setup.sh` automation is Linux-only, but manual setup takes just 5 minutes on macOS/Windows.
+**Bottom line:** The proxy works on all platforms, and setup.sh now automates installation for Linux, macOS, and WSL2!
 
 ---
 
