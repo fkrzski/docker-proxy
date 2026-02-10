@@ -78,6 +78,34 @@ get_mkcert_download_url() {
     MKCERT_URL="https://dl.filippo.io/mkcert/latest?for=${MKCERT_OS}/${MKCERT_ARCH}"
 }
 
+# Get Windows username in WSL2 environment
+get_windows_username() {
+    if [ "$OS_TYPE" = "wsl2" ]; then
+        # Try to get Windows username from cmd.exe
+        local win_user=$(/mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n')
+        if [ -n "$win_user" ] && [ "$win_user" != "%USERNAME%" ]; then
+            echo "$win_user"
+            return 0
+        fi
+
+        # Fallback: detect from /mnt/c/Users directory
+        if [ -d "/mnt/c/Users" ]; then
+            for dir in /mnt/c/Users/*; do
+                if [ -d "$dir" ]; then
+                    local dirname=$(basename "$dir")
+                    # Skip system directories
+                    if [ "$dirname" != "Public" ] && [ "$dirname" != "Default" ] && \
+                       [ "$dirname" != "All Users" ] && [ "$dirname" != "Default User" ]; then
+                        echo "$dirname"
+                        return 0
+                    fi
+                fi
+            done
+        fi
+    fi
+    return 1
+}
+
 log_info "Starting Local Docker Proxy setup..."
 
 # Detect OS and architecture
@@ -223,9 +251,10 @@ install_mkcert() {
     fi
 
     log_info "Downloading mkcert from: $MKCERT_URL"
-    curl -JLO "$MKCERT_URL"
-    chmod +x mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH}
-    sudo mv mkcert-v*-${MKCERT_OS}-${MKCERT_ARCH} /usr/local/bin/mkcert
+    TEMP_MKCERT="./mkcert-temp-${MKCERT_OS}-${MKCERT_ARCH}"
+    curl -Lo "$TEMP_MKCERT" "$MKCERT_URL"
+    chmod +x "$TEMP_MKCERT"
+    sudo mv "$TEMP_MKCERT" /usr/local/bin/mkcert
 
     log_success "mkcert installed via direct download."
 }
@@ -318,8 +347,16 @@ if [ "$OS_TYPE" = "wsl2" ]; then
     log_info "1. Find the mkcert root CA certificate location:"
     log_info "   Run: mkcert -CAROOT"
     echo ""
-    log_info "2. Copy the rootCA.pem file to Windows:"
-    log_info "   Example: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/YourUsername/Downloads/"
+
+    # Detect Windows username for clearer instructions
+    WIN_USERNAME=$(get_windows_username)
+    if [ -n "$WIN_USERNAME" ]; then
+        log_info "2. Copy the rootCA.pem file to Windows:"
+        log_info "   Run: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/${WIN_USERNAME}/Downloads/"
+    else
+        log_info "2. Copy the rootCA.pem file to Windows (replace YourWindowsUsername with your actual Windows username):"
+        log_info "   Example: cp \$(mkcert -CAROOT)/rootCA.pem /mnt/c/Users/YourWindowsUsername/Downloads/"
+    fi
     echo ""
     log_info "3. In Windows, double-click the rootCA.pem file"
     log_info "   - Click 'Install Certificate'"
