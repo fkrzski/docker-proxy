@@ -10,6 +10,10 @@ It runs a single Traefik container handling routing for all local projects via c
   - Linux: Tested on Debian/Ubuntu derivatives (also supports Fedora, Arch, Alpine)
   - macOS: Requires Docker Desktop for Mac
   - Windows: Requires WSL2 with Docker Desktop integration
+- **Architecture:** Both x86_64 (amd64) and ARM64 (aarch64) platforms
+  - **Apple Silicon Macs:** Full support for M1, M2, and M3 chips
+  - **ARM-based Linux:** Compatible with Raspberry Pi, AWS Graviton, and other ARM64 systems
+  - **Auto-detection:** The `setup.sh` script automatically detects your system architecture and pulls the correct multi-arch container images
 - **Software:**
   - Docker Engine & Docker Compose
   - `curl`
