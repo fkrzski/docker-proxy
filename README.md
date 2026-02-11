@@ -82,6 +82,10 @@ COMPOSE_PROFILES=
 
 ## Usage in Projects
 
+📖 **For comprehensive integration guides, framework-specific examples, and troubleshooting, see the [Integration Guide](docs/INTEGRATION_GUIDE.md).**
+
+### Quick Start Example
+
 To expose a container via this proxy, configure your project's `compose.yml` as follows:
 
 1.  **Network:** Connect to the external `traefik-proxy` network.
@@ -108,6 +112,39 @@ networks:
   traefik-proxy:
     external: true
 ```
+
+## Logging
+
+📖 **For detailed logging configuration, viewing logs, and troubleshooting, see the [Logging Documentation](docs/LOGGING.md).**
+
+### Overview
+
+The proxy implements automatic log rotation for all containers to prevent disk space issues:
+
+- **Container Logs**: All services use Docker's `json-file` logging driver with rotation (10 MB per file, 3 files max)
+- **Traefik Access Logs**: Optional HTTP request tracing for debugging (disabled by default)
+
+### Quick Commands
+
+```bash
+# View Traefik logs
+docker logs traefik
+
+# Follow logs in real-time
+docker logs traefik --follow
+
+# View logs from all services
+docker compose logs --follow
+
+# Enable access logs (edit .env)
+TRAEFIK_ACCESS_LOG_ENABLED=true
+```
+
+**Key Features:**
+- ✅ Automatic rotation prevents disk exhaustion (~30 MB per container)
+- ✅ Structured JSON format for easy parsing
+- ✅ Built-in Docker tooling for log access
+- ✅ Optional detailed request tracing for debugging
 
 ## Uninstallation
 
