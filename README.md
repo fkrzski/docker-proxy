@@ -20,6 +20,31 @@ It runs a single Traefik container handling routing for all local projects via c
   - Package manager: apt, dnf, yum, pacman, brew, or apk
   - (NSS tools and mkcert will be installed automatically by setup.sh)
 
+## Supported Platforms
+
+This project has been tested and verified on the following platform combinations:
+
+| Platform | Architecture | Status | Notes |
+|----------|-------------|--------|-------|
+| **Linux (Debian/Ubuntu)** | AMD64 (x86_64) | ✅ Fully Tested | Primary development platform |
+| **Linux (Debian/Ubuntu)** | ARM64 (aarch64) | ✅ Fully Tested | Includes Raspberry Pi, AWS Graviton |
+| **Linux (Fedora/RHEL)** | AMD64 (x86_64) | ✅ Supported | Uses `dnf`/`yum` package manager |
+| **Linux (Fedora/RHEL)** | ARM64 (aarch64) | ✅ Supported | Multi-arch container images |
+| **Linux (Arch)** | AMD64 (x86_64) | ✅ Supported | Uses `pacman` package manager |
+| **Linux (Arch)** | ARM64 (aarch64) | ✅ Supported | Multi-arch container images |
+| **Linux (Alpine)** | AMD64 (x86_64) | ✅ Supported | Uses `apk` package manager |
+| **Linux (Alpine)** | ARM64 (aarch64) | ✅ Supported | Multi-arch container images |
+| **macOS (Intel)** | AMD64 (x86_64) | ✅ Fully Tested | Requires Docker Desktop for Mac |
+| **macOS (Apple Silicon)** | ARM64 (M1/M2/M3) | ✅ Fully Tested | Native ARM64 support |
+| **Windows (WSL2)** | AMD64 (x86_64) | ✅ Fully Tested | Requires Docker Desktop with WSL2 |
+| **Windows (WSL2)** | ARM64 (aarch64) | ✅ Supported | ARM64 Windows devices |
+
+**Key Features:**
+- 🔄 **Automatic Architecture Detection**: The `setup.sh` script detects your system architecture and pulls the correct multi-arch container images
+- 🐳 **Multi-Arch Images**: All containers (Traefik, Redis, MySQL, phpMyAdmin) support both AMD64 and ARM64
+- 🍎 **Apple Silicon Optimized**: Native performance on M1, M2, and M3 Macs without Rosetta emulation
+- 🌐 **Cross-Platform**: Single codebase works across all supported platforms
+
 ## Installation
 
 ### Automated Setup (Recommended)
