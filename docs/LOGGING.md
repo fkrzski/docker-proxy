@@ -208,7 +208,7 @@ Traefik access logs provide detailed information about every HTTP request routed
 
    ```bash
    # Generate some traffic
-   curl -k https://traefik.docker.localhost/
+   curl https://traefik.docker.localhost/
 
    # Check for access log entries
    docker logs traefik --tail 20 | grep -i "clientaddr\|requestpath"
@@ -427,7 +427,7 @@ docker inspect traefik | grep -i accesslog
 docker compose up -d traefik
 
 # Generate traffic to trigger access logs
-curl -k https://traefik.docker.localhost
+   curl https://traefik.docker.localhost
 
 # Check logs again (access logs are JSON, mixed with regular logs)
 docker logs traefik --tail 50 | grep RequestPath
