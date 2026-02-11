@@ -49,32 +49,53 @@ fi
 echo ""
 echo "===== ARM64 ARCHITECTURE TEST CASES ====="
 
-# Test 1: aarch64 detection
+# Test 1: aarch64 architecture normalization
 echo ""
-echo "Test 1: aarch64 detection"
+echo "Test 1: aarch64 architecture normalization"
 test_aarch64_detection() {
-    local original_arch="$ARCH"
-    ARCH=$(echo "aarch64" | sed 's/aarch64/arm64/')
-    if [[ "$ARCH" == "arm64" ]]; then
+    # Test the case statement logic from detect_os function
+    # Simulating: case "$ARCH" in aarch64|arm64) ARCH="arm64" ;;
+    local test_arch="aarch64"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    if [[ "$normalized_arch" == "arm64" ]]; then
         echo "✅ PASS: aarch64 correctly maps to arm64"
         return 0
     else
-        echo "❌ FAIL: aarch64 did not map to arm64 (got: $ARCH)"
+        echo "❌ FAIL: aarch64 did not map to arm64 (got: $normalized_arch)"
         return 1
     fi
 }
 test_aarch64_detection
 
-# Test 2: arm64 detection
+# Test 2: arm64 architecture normalization
 echo ""
-echo "Test 2: arm64 detection"
+echo "Test 2: arm64 architecture normalization"
 test_arm64_detection() {
+    # Test the case statement logic from detect_os function
+    # Simulating: case "$ARCH" in aarch64|arm64) ARCH="arm64" ;;
     local test_arch="arm64"
-    if [[ "$test_arch" == "arm64" ]]; then
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    if [[ "$normalized_arch" == "arm64" ]]; then
         echo "✅ PASS: arm64 architecture recognized"
         return 0
     else
-        echo "❌ FAIL: arm64 not recognized"
+        echo "❌ FAIL: arm64 not recognized (got: $normalized_arch)"
         return 1
     fi
 }
@@ -86,6 +107,7 @@ echo "Test 3: ARM64 mkcert URL for Linux"
 test_arm64_linux_url() {
     local saved_os="$OS_TYPE"
     local saved_arch="$ARCH"
+    local result=0
 
     OS_TYPE="linux"
     ARCH="arm64"
@@ -94,17 +116,17 @@ test_arm64_linux_url() {
     if [[ "$MKCERT_URL" == "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]]; then
         echo "✅ PASS: Linux ARM64 mkcert URL is correct"
         echo "   URL: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 0
     else
         echo "❌ FAIL: Linux ARM64 mkcert URL incorrect"
         echo "   Expected: https://dl.filippo.io/mkcert/latest?for=linux/arm64"
         echo "   Got: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 1
+        result=1
     fi
+
+    # Restore state
+    OS_TYPE="$saved_os"
+    ARCH="$saved_arch"
+    return $result
 }
 test_arm64_linux_url
 
@@ -114,6 +136,7 @@ echo "Test 4: ARM64 mkcert URL for macOS"
 test_arm64_macos_url() {
     local saved_os="$OS_TYPE"
     local saved_arch="$ARCH"
+    local result=0
 
     OS_TYPE="macos"
     ARCH="arm64"
@@ -122,17 +145,17 @@ test_arm64_macos_url() {
     if [[ "$MKCERT_URL" == "https://dl.filippo.io/mkcert/latest?for=darwin/arm64" ]]; then
         echo "✅ PASS: macOS ARM64 mkcert URL is correct"
         echo "   URL: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 0
     else
         echo "❌ FAIL: macOS ARM64 mkcert URL incorrect"
         echo "   Expected: https://dl.filippo.io/mkcert/latest?for=darwin/arm64"
         echo "   Got: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 1
+        result=1
     fi
+
+    # Restore state
+    OS_TYPE="$saved_os"
+    ARCH="$saved_arch"
+    return $result
 }
 test_arm64_macos_url
 
@@ -142,6 +165,7 @@ echo "Test 5: ARM64 mkcert URL for WSL2"
 test_arm64_wsl2_url() {
     local saved_os="$OS_TYPE"
     local saved_arch="$ARCH"
+    local result=0
 
     OS_TYPE="wsl2"
     ARCH="arm64"
@@ -150,17 +174,17 @@ test_arm64_wsl2_url() {
     if [[ "$MKCERT_URL" == "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]]; then
         echo "✅ PASS: WSL2 ARM64 mkcert URL is correct (uses linux)"
         echo "   URL: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 0
     else
         echo "❌ FAIL: WSL2 ARM64 mkcert URL incorrect"
         echo "   Expected: https://dl.filippo.io/mkcert/latest?for=linux/arm64"
         echo "   Got: $MKCERT_URL"
-        OS_TYPE="$saved_os"
-        ARCH="$saved_arch"
-        return 1
+        result=1
     fi
+
+    # Restore state
+    OS_TYPE="$saved_os"
+    ARCH="$saved_arch"
+    return $result
 }
 test_arm64_wsl2_url
 
