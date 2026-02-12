@@ -33,19 +33,19 @@ teardown() {
 # ============================================================================
 
 @test "detect_os sets OS_TYPE variable" {
-    run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$OS_TYPE" ]]'
+    run bash -c 'log_error() { echo "$@" >&2; }; export -f log_error; eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$OS_TYPE" ]]'
     [ "$status" -eq 0 ]
 }
 
 @test "detect_os sets ARCH variable" {
-    run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$ARCH" ]]'
+    run bash -c 'log_error() { echo "$@" >&2; }; export -f log_error; eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$ARCH" ]]'
     [ "$status" -eq 0 ]
 }
 
 @test "detect_os detects Linux on Linux system" {
     # Test on actual Linux system (not WSL2)
-    if [[ "$(uname -s)" == "Linux" ]] && [[ ! -f /proc/version ]] || ! grep -qi microsoft /proc/version 2>/dev/null; then
-        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "linux" ]]'
+    if [[ "$(uname -s)" == "Linux" ]] && ! grep -qi microsoft /proc/version 2>/dev/null; then
+        run bash -c 'log_error() { echo "$@" >&2; }; export -f log_error; eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "linux" ]]'
         [ "$status" -eq 0 ]
     else
         skip "Cannot test Linux detection on non-Linux or WSL2 system"
@@ -55,7 +55,7 @@ teardown() {
 @test "detect_os detects macOS on macOS system" {
     # Test on actual macOS system
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "macos" ]]'
+        run bash -c 'log_error() { echo "$@" >&2; }; export -f log_error; eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "macos" ]]'
         [ "$status" -eq 0 ]
     else
         skip "Not running on macOS"
@@ -65,7 +65,7 @@ teardown() {
 @test "detect_os detects WSL2 on WSL2 system" {
     # WSL2 detection requires /proc/version with 'microsoft'
     if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
-        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "wsl2" ]]'
+        run bash -c 'log_error() { echo "$@" >&2; }; export -f log_error; eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "wsl2" ]]'
         [ "$status" -eq 0 ]
     else
         skip "Cannot test WSL2 detection on non-WSL2 system"
@@ -79,6 +79,8 @@ teardown() {
 @test "detect_os normalizes x86_64 to amd64" {
     # Mock uname to return x86_64
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         source tests/helpers/mocks.bash
         mock_uname "-m" "Linux" "x86_64"
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
@@ -92,6 +94,8 @@ teardown() {
 @test "detect_os normalizes aarch64 to arm64" {
     # Mock uname to return aarch64
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         source tests/helpers/mocks.bash
         mock_uname "-m" "Linux" "aarch64"
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
@@ -105,6 +109,8 @@ teardown() {
 @test "detect_os normalizes arm64 to arm64" {
     # Mock uname to return arm64
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         source tests/helpers/mocks.bash
         mock_uname "-m" "Darwin" "arm64"
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
@@ -118,6 +124,8 @@ teardown() {
 @test "detect_os normalizes armv7l to armv7" {
     # Mock uname to return armv7l
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         source tests/helpers/mocks.bash
         mock_uname "-m" "Linux" "armv7l"
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
@@ -131,6 +139,8 @@ teardown() {
 @test "detect_os handles unsupported architecture" {
     # Mock uname to return unsupported architecture
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         source tests/helpers/mocks.bash
         mock_uname "-m" "Linux" "mips64"
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
@@ -248,6 +258,8 @@ teardown() {
 
 @test "Full workflow: detect OS and generate mkcert URL" {
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
         eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
         detect_os
@@ -261,6 +273,8 @@ teardown() {
     # This test uses actual system detection if on Linux
     if [[ "$(uname -s)" == "Linux" ]] && ! grep -qi microsoft /proc/version 2>/dev/null; then
         run bash -c '
+            log_error() { echo "$@" >&2; }
+            export -f log_error
             eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
             eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
             detect_os
@@ -277,6 +291,8 @@ teardown() {
     # This test uses actual system detection if on macOS
     if [[ "$(uname -s)" == "Darwin" ]]; then
         run bash -c '
+            log_error() { echo "$@" >&2; }
+            export -f log_error
             eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
             eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
             detect_os
@@ -293,6 +309,8 @@ teardown() {
     # This test uses actual system detection if on WSL2
     if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
         run bash -c '
+            log_error() { echo "$@" >&2; }
+            export -f log_error
             eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
             eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
             detect_os
@@ -335,6 +353,8 @@ teardown() {
 
 @test "Detected OS_TYPE is a valid value" {
     run bash -c '
+        log_error() { echo "$@" >&2; }
+        export -f log_error
         eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
         detect_os
         case "$OS_TYPE" in
