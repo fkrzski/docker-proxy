@@ -1,18 +1,16 @@
 #!/bin/bash
 # Mock utilities for external commands used in setup.sh testing
+# Compatible with bash 3.2+ (macOS default)
 
-# Mock state storage
-declare -A MOCK_CALL_COUNT
-declare -A MOCK_CALL_ARGS
-declare -A MOCK_RETURN_VALUES
-declare -A MOCK_EXIT_CODES
+# Mock state storage - using simple variables instead of associative arrays
+# for bash 3.2 compatibility
 
 # Initialize mock tracking
 init_mocks() {
-    MOCK_CALL_COUNT=()
-    MOCK_CALL_ARGS=()
-    MOCK_RETURN_VALUES=()
-    MOCK_EXIT_CODES=()
+    # Reset all mock tracking variables
+    # We use dynamic variable names like MOCK_CALL_COUNT_<cmd>
+    # to simulate associative array behavior in bash 3.2
+    :
 }
 
 # Reset all mocks
@@ -22,6 +20,9 @@ reset_mocks() {
     unset -f uname grep curl docker
     unset -f apt dpkg dnf yum rpm pacman brew apk
     unset -f mkcert command sudo mkdir cp chmod mktemp mv
+
+    # Clear mock tracking variables
+    unset $(set | grep '^MOCK_' | cut -d= -f1)
 }
 
 # Record mock call
@@ -30,28 +31,35 @@ record_mock_call() {
     shift
     local args="$*"
 
-    # Initialize counter if not set
-    if [[ -z "${MOCK_CALL_COUNT[$cmd]}" ]]; then
-        MOCK_CALL_COUNT[$cmd]=0
-    fi
+    # Sanitize command name for use in variable names
+    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
+    local count_var="MOCK_CALL_COUNT_${var_suffix}"
+    local args_var="MOCK_CALL_ARGS_${var_suffix}"
+
+    # Get current count
+    local current_count=$(eval "echo \${${count_var}:-0}")
 
     # Increment call count
-    ((MOCK_CALL_COUNT[$cmd]++))
+    eval "${count_var}=$((current_count + 1))"
 
     # Store arguments (using \x1f as separator - less likely to appear in arguments)
-    MOCK_CALL_ARGS[$cmd]="${MOCK_CALL_ARGS[$cmd]}"$'\x1f'"$args"
+    eval "${args_var}=\"\${${args_var}}\$'\\x1f'\$args\""
 }
 
 # Get mock call count
 get_mock_call_count() {
     local cmd="$1"
-    echo "${MOCK_CALL_COUNT[$cmd]:-0}"
+    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
+    local count_var="MOCK_CALL_COUNT_${var_suffix}"
+    eval "echo \${${count_var}:-0}"
 }
 
 # Get mock call arguments
 get_mock_call_args() {
     local cmd="$1"
-    echo "${MOCK_CALL_ARGS[$cmd]}"
+    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
+    local args_var="MOCK_CALL_ARGS_${var_suffix}"
+    eval "echo \"\${${args_var}}\""
 }
 
 # Set mock return value
@@ -60,8 +68,12 @@ set_mock_return() {
     local return_value="$2"
     local exit_code="${3:-0}"
 
-    MOCK_RETURN_VALUES[$cmd]="$return_value"
-    MOCK_EXIT_CODES[$cmd]="$exit_code"
+    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
+    local return_var="MOCK_RETURN_VALUES_${var_suffix}"
+    local exit_var="MOCK_EXIT_CODES_${var_suffix}"
+
+    eval "${return_var}=\"\${return_value}\""
+    eval "${exit_var}=\${exit_code}"
 }
 
 # Mock: uname
@@ -116,10 +128,10 @@ mock_grep() {
         done
 
         if [[ "$quiet" == "false" ]]; then
-            echo "${MOCK_RETURN_VALUES[grep]}"
+            eval "echo \"\${MOCK_RETURN_VALUES_GREP}\""
         fi
 
-        return ${MOCK_EXIT_CODES[grep]:-$exit_code}
+        eval "return \${MOCK_EXIT_CODES_GREP:-$exit_code}"
     }
     export -f grep
 }
@@ -132,11 +144,11 @@ mock_curl() {
         record_mock_call "curl" "$@"
 
         if [[ "$success" == "true" ]]; then
-            echo "${MOCK_RETURN_VALUES[curl]:-mocked curl output}"
+            eval "echo \"\${MOCK_RETURN_VALUES_CURL:-mocked curl output}\""
             return 0
         else
             echo "curl: error" >&2
-            return ${MOCK_EXIT_CODES[curl]:-1}
+            eval "return \${MOCK_EXIT_CODES_CURL:-1}"
         fi
     }
     export -f curl
@@ -175,12 +187,12 @@ mock_docker() {
                 fi
                 ;;
             compose|ps|logs)
-                echo "${MOCK_RETURN_VALUES[docker]}"
-                return ${MOCK_EXIT_CODES[docker]:-0}
+                eval "echo \"\${MOCK_RETURN_VALUES_DOCKER}\""
+                eval "return \${MOCK_EXIT_CODES_DOCKER:-0}"
                 ;;
             *)
-                echo "${MOCK_RETURN_VALUES[docker]}"
-                return ${MOCK_EXIT_CODES[docker]:-0}
+                eval "echo \"\${MOCK_RETURN_VALUES_DOCKER}\""
+                eval "return \${MOCK_EXIT_CODES_DOCKER:-0}"
                 ;;
         esac
     }
