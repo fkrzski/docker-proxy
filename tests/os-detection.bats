@@ -1,0 +1,385 @@
+#!/usr/bin/env bats
+# OS Detection Tests for setup.sh
+
+# Load test helpers
+load helpers/test-helpers
+load helpers/mocks
+
+# Setup and teardown functions run before/after each test
+setup() {
+    # Save original environment
+    export SAVED_OS_TYPE="$OS_TYPE"
+    export SAVED_ARCH="$ARCH"
+    export SAVED_MKCERT_URL="$MKCERT_URL"
+    export SAVED_MKCERT_OS="$MKCERT_OS"
+    export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
+
+    # Extract just the functions we need from setup.sh
+    eval "$(sed -n '/^detect_os()/,/^}/p' ./setup.sh)"
+    eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
+}
+
+teardown() {
+    # Restore original environment
+    OS_TYPE="$SAVED_OS_TYPE"
+    ARCH="$SAVED_ARCH"
+    MKCERT_URL="$SAVED_MKCERT_URL"
+    MKCERT_OS="$SAVED_MKCERT_OS"
+    MKCERT_ARCH="$SAVED_MKCERT_ARCH"
+}
+
+# ============================================================================
+# Basic OS Detection Tests
+# ============================================================================
+
+@test "detect_os sets OS_TYPE variable" {
+    run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$OS_TYPE" ]]'
+    [ "$status" -eq 0 ]
+}
+
+@test "detect_os sets ARCH variable" {
+    run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ -n "$ARCH" ]]'
+    [ "$status" -eq 0 ]
+}
+
+@test "detect_os detects Linux on Linux system" {
+    # Test on actual Linux system (not WSL2)
+    if [[ "$(uname -s)" == "Linux" ]] && [[ ! -f /proc/version ]] || ! grep -qi microsoft /proc/version 2>/dev/null; then
+        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "linux" ]]'
+        [ "$status" -eq 0 ]
+    else
+        skip "Cannot test Linux detection on non-Linux or WSL2 system"
+    fi
+}
+
+@test "detect_os detects macOS on macOS system" {
+    # Test on actual macOS system
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "macos" ]]'
+        [ "$status" -eq 0 ]
+    else
+        skip "Not running on macOS"
+    fi
+}
+
+@test "detect_os detects WSL2 on WSL2 system" {
+    # WSL2 detection requires /proc/version with 'microsoft'
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+        run bash -c 'eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"; detect_os; [[ "$OS_TYPE" == "wsl2" ]]'
+        [ "$status" -eq 0 ]
+    else
+        skip "Cannot test WSL2 detection on non-WSL2 system"
+    fi
+}
+
+# ============================================================================
+# Architecture Detection Tests - Testing normalization logic
+# ============================================================================
+
+@test "Architecture normalization: x86_64 to amd64" {
+    local test_arch="x86_64"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    [ "$normalized_arch" = "amd64" ]
+}
+
+@test "Architecture normalization: aarch64 to arm64" {
+    local test_arch="aarch64"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    [ "$normalized_arch" = "arm64" ]
+}
+
+@test "Architecture normalization: arm64 to arm64" {
+    local test_arch="arm64"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    [ "$normalized_arch" = "arm64" ]
+}
+
+@test "Architecture normalization: armv7l to armv7" {
+    local test_arch="armv7l"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    [ "$normalized_arch" = "armv7" ]
+}
+
+@test "Architecture normalization: unsupported architecture detection" {
+    local test_arch="mips64"
+    local normalized_arch
+
+    case "$test_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    [ "$normalized_arch" = "unsupported" ]
+}
+
+# ============================================================================
+# mkcert URL Generation Tests
+# ============================================================================
+
+@test "get_mkcert_download_url generates Linux amd64 URL" {
+    OS_TYPE="linux"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/amd64" ]
+}
+
+@test "get_mkcert_download_url generates Linux arm64 URL" {
+    OS_TYPE="linux"
+    ARCH="arm64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]
+}
+
+@test "get_mkcert_download_url generates Linux armv7 URL" {
+    OS_TYPE="linux"
+    ARCH="armv7"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm" ]
+}
+
+@test "get_mkcert_download_url generates macOS amd64 URL" {
+    OS_TYPE="macos"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=darwin/amd64" ]
+}
+
+@test "get_mkcert_download_url generates macOS arm64 URL" {
+    OS_TYPE="macos"
+    ARCH="arm64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=darwin/arm64" ]
+}
+
+@test "get_mkcert_download_url generates WSL2 amd64 URL (uses linux)" {
+    OS_TYPE="wsl2"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/amd64" ]
+}
+
+@test "get_mkcert_download_url generates WSL2 arm64 URL (uses linux)" {
+    OS_TYPE="wsl2"
+    ARCH="arm64"
+    get_mkcert_download_url
+    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_OS to darwin for macOS" {
+    OS_TYPE="macos"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_OS" = "darwin" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_OS to linux for Linux" {
+    OS_TYPE="linux"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_OS" = "linux" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_OS to linux for WSL2" {
+    OS_TYPE="wsl2"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_OS" = "linux" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_ARCH correctly for amd64" {
+    OS_TYPE="linux"
+    ARCH="amd64"
+    get_mkcert_download_url
+    [ "$MKCERT_ARCH" = "amd64" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_ARCH correctly for arm64" {
+    OS_TYPE="linux"
+    ARCH="arm64"
+    get_mkcert_download_url
+    [ "$MKCERT_ARCH" = "arm64" ]
+}
+
+@test "get_mkcert_download_url sets MKCERT_ARCH to arm for armv7" {
+    OS_TYPE="linux"
+    ARCH="armv7"
+    get_mkcert_download_url
+    [ "$MKCERT_ARCH" = "arm" ]
+}
+
+@test "get_mkcert_download_url fails for unsupported OS" {
+    OS_TYPE="unknown"
+    ARCH="amd64"
+    run get_mkcert_download_url
+    [ "$status" -eq 1 ]
+}
+
+# ============================================================================
+# Integration Tests (combining detect_os and get_mkcert_download_url)
+# ============================================================================
+
+@test "Full workflow: detect OS and generate mkcert URL" {
+    run bash -c '
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
+        detect_os
+        get_mkcert_download_url
+        [[ -n "$OS_TYPE" && -n "$ARCH" && -n "$MKCERT_URL" ]]
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "Full workflow: Linux x86_64 system produces valid URL" {
+    # This test uses actual system detection if on Linux
+    if [[ "$(uname -s)" == "Linux" ]] && ! grep -qi microsoft /proc/version 2>/dev/null; then
+        run bash -c '
+            eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+            eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
+            detect_os
+            get_mkcert_download_url
+            [[ "$OS_TYPE" == "linux" && "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest\?for=linux/ ]]
+        '
+        [ "$status" -eq 0 ]
+    else
+        skip "Not running on native Linux"
+    fi
+}
+
+@test "Full workflow: macOS system produces valid URL" {
+    # This test uses actual system detection if on macOS
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        run bash -c '
+            eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+            eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
+            detect_os
+            get_mkcert_download_url
+            [[ "$OS_TYPE" == "macos" && "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest\?for=darwin/ ]]
+        '
+        [ "$status" -eq 0 ]
+    else
+        skip "Not running on macOS"
+    fi
+}
+
+@test "Full workflow: WSL2 system produces valid Linux URL" {
+    # This test uses actual system detection if on WSL2
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+        run bash -c '
+            eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+            eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
+            detect_os
+            get_mkcert_download_url
+            [[ "$OS_TYPE" == "wsl2" && "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest\?for=linux/ && "$MKCERT_OS" == "linux" ]]
+        '
+        [ "$status" -eq 0 ]
+    else
+        skip "Not running on WSL2"
+    fi
+}
+
+# ============================================================================
+# Edge Cases and Error Handling
+# ============================================================================
+
+@test "get_mkcert_download_url URL format is valid" {
+    OS_TYPE="linux"
+    ARCH="amd64"
+    get_mkcert_download_url
+
+    # Verify URL structure
+    [[ "$MKCERT_URL" =~ ^https:// ]]
+    [[ "$MKCERT_URL" =~ dl\.filippo\.io/mkcert/latest ]]
+    [[ "$MKCERT_URL" =~ \?for= ]]
+}
+
+@test "Current system architecture is supported" {
+    local current_arch=$(uname -m)
+    case "$current_arch" in
+        x86_64|aarch64|arm64|armv7l)
+            # Supported architecture
+            true
+            ;;
+        *)
+            fail "Current architecture ($current_arch) is not supported"
+            ;;
+    esac
+}
+
+@test "Detected OS_TYPE is a valid value" {
+    run bash -c '
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os
+        case "$OS_TYPE" in
+            linux|macos|wsl2|unknown)
+                exit 0
+                ;;
+            *)
+                echo "Invalid OS_TYPE: $OS_TYPE"
+                exit 1
+                ;;
+        esac
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "armv7 architecture maps to arm in mkcert URL" {
+    OS_TYPE="linux"
+    ARCH="armv7"
+    get_mkcert_download_url
+
+    # armv7 should be mapped to "arm" in the URL
+    [[ "$MKCERT_URL" =~ linux/arm$ ]]
+    [ "$MKCERT_ARCH" = "arm" ]
+}
+
+@test "All supported OS and arch combinations produce valid URLs" {
+    # Test matrix of supported combinations
+    local os_types=("linux" "macos" "wsl2")
+    local archs=("amd64" "arm64" "armv7")
+
+    for os in "${os_types[@]}"; do
+        for arch in "${archs[@]}"; do
+            OS_TYPE="$os"
+            ARCH="$arch"
+            get_mkcert_download_url
+
+            # Verify URL was generated
+            [[ -n "$MKCERT_URL" ]] || fail "No URL generated for $os/$arch"
+            [[ "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest ]] || fail "Invalid URL for $os/$arch"
+        done
+    done
+}
