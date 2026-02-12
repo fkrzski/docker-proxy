@@ -1,0 +1,58 @@
+name: Test Suite
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install bats-core (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Install bats-core (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install bats-core
+
+      - name: Verify bats installation
+        run: |
+          bats --version
+
+      - name: Run OS detection tests
+        run: |
+          bats tests/os-detection.bats
+
+      - name: Run mkcert tests
+        run: |
+          bats tests/mkcert.bats
+
+      - name: Run package manager tests
+        run: |
+          bats tests/package-manager.bats
+
+      - name: Run setup flow tests
+        run: |
+          bats tests/setup.bats
+
+      - name: Run all tests
+        run: |
+          bats tests/*.bats
