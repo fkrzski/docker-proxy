@@ -179,6 +179,126 @@ TRAEFIK_ACCESS_LOG_ENABLED=true
 - ✅ Built-in Docker tooling for log access
 - ✅ Optional detailed request tracing for debugging
 
+## Testing
+
+The project includes a comprehensive test suite for the `setup.sh` script to ensure reliability across different platforms and configurations.
+
+### Test Framework
+
+Tests are written using **[bats-core](https://github.com/bats-core/bats-core)**, a Bash Automated Testing System that provides:
+- TAP (Test Anything Protocol) compliant output
+- Isolated test execution with setup/teardown hooks
+- Cross-platform compatibility (Linux, macOS, WSL2)
+- Simple, readable test syntax
+
+### Installing bats-core
+
+**macOS (Homebrew):**
+```bash
+brew install bats-core
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install bats
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install bats
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S bats
+```
+
+**Manual Installation (All Platforms):**
+```bash
+git clone https://github.com/bats-core/bats-core.git
+cd bats-core
+sudo ./install.sh /usr/local
+```
+
+### Running Tests
+
+**Run all tests:**
+```bash
+bats tests/
+```
+
+**Run specific test file:**
+```bash
+bats tests/setup.bats
+bats tests/os-detection.bats
+bats tests/package-manager.bats
+bats tests/mkcert.bats
+```
+
+**Run with verbose output:**
+```bash
+bats --verbose-run tests/
+```
+
+**Run with TAP output:**
+```bash
+bats --tap tests/
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **OS Detection** (`tests/os-detection.bats`)
+  - Linux, macOS, and WSL2 detection
+  - Architecture detection (AMD64, ARM64, ARMv7)
+  - Edge cases and error handling
+
+- **Package Manager Detection** (`tests/package-manager.bats`)
+  - apt, dnf, yum, pacman, brew, apk
+  - Package name resolution
+  - Command configuration
+
+- **mkcert Integration** (`tests/mkcert.bats`)
+  - URL generation for different platforms
+  - Binary download and installation
+  - Certificate generation
+
+- **End-to-End Workflows** (`tests/setup.bats`)
+  - Complete setup flow validation
+  - Multi-step integration tests
+  - Platform-specific validation
+
+### Continuous Integration
+
+Tests run automatically on every push and pull request via **GitHub Actions**. The CI pipeline:
+- Tests on multiple platforms (Linux, macOS)
+- Tests on multiple architectures (AMD64, ARM64)
+- Ensures backward compatibility
+- Validates PRs before merge
+
+You can view test results in the [Actions tab](../../actions) of the repository.
+
+### Contributing Tests
+
+When contributing to the setup script:
+1. **Add tests** for new functionality
+2. **Run tests locally** before submitting PR
+3. **Ensure CI passes** on all platforms
+4. **Follow existing test patterns** for consistency
+
+Example test structure:
+```bash
+@test "Description of what is being tested" {
+    run bash -c '
+        # Setup test environment
+        # Execute function being tested
+        # Validate results
+    '
+    [ "$status" -eq 0 ]
+}
+```
+
 ## Uninstallation
 
 To remove the proxy and clean up system changes:
