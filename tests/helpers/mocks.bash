@@ -21,7 +21,7 @@ reset_mocks() {
     # Restore original commands by unsetting mock functions
     unset -f uname grep curl docker
     unset -f apt dpkg dnf yum rpm pacman brew apk
-    unset -f mkcert command sudo mkdir cp chmod
+    unset -f mkcert command sudo mkdir cp chmod mktemp mv
 }
 
 # Record mock call
@@ -38,8 +38,8 @@ record_mock_call() {
     # Increment call count
     ((MOCK_CALL_COUNT[$cmd]++))
 
-    # Store arguments
-    MOCK_CALL_ARGS[$cmd]="${MOCK_CALL_ARGS[$cmd]}|$args"
+    # Store arguments (using \x1f as separator - less likely to appear in arguments)
+    MOCK_CALL_ARGS[$cmd]="${MOCK_CALL_ARGS[$cmd]}"$'\x1f'"$args"
 }
 
 # Get mock call count

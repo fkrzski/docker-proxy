@@ -76,74 +76,68 @@ teardown() {
 # Architecture Detection Tests - Testing normalization logic
 # ============================================================================
 
-@test "Architecture normalization: x86_64 to amd64" {
-    local test_arch="x86_64"
-    local normalized_arch
-
-    case "$test_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    [ "$normalized_arch" = "amd64" ]
+@test "detect_os normalizes x86_64 to amd64" {
+    # Mock uname to return x86_64
+    run bash -c '
+        source tests/helpers/mocks.bash
+        mock_uname "-m" "Linux" "x86_64"
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os
+        echo "$ARCH"
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = "amd64" ]
 }
 
-@test "Architecture normalization: aarch64 to arm64" {
-    local test_arch="aarch64"
-    local normalized_arch
-
-    case "$test_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    [ "$normalized_arch" = "arm64" ]
+@test "detect_os normalizes aarch64 to arm64" {
+    # Mock uname to return aarch64
+    run bash -c '
+        source tests/helpers/mocks.bash
+        mock_uname "-m" "Linux" "aarch64"
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os
+        echo "$ARCH"
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = "arm64" ]
 }
 
-@test "Architecture normalization: arm64 to arm64" {
-    local test_arch="arm64"
-    local normalized_arch
-
-    case "$test_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    [ "$normalized_arch" = "arm64" ]
+@test "detect_os normalizes arm64 to arm64" {
+    # Mock uname to return arm64
+    run bash -c '
+        source tests/helpers/mocks.bash
+        mock_uname "-m" "Darwin" "arm64"
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os
+        echo "$ARCH"
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = "arm64" ]
 }
 
-@test "Architecture normalization: armv7l to armv7" {
-    local test_arch="armv7l"
-    local normalized_arch
-
-    case "$test_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    [ "$normalized_arch" = "armv7" ]
+@test "detect_os normalizes armv7l to armv7" {
+    # Mock uname to return armv7l
+    run bash -c '
+        source tests/helpers/mocks.bash
+        mock_uname "-m" "Linux" "armv7l"
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os
+        echo "$ARCH"
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = "armv7" ]
 }
 
-@test "Architecture normalization: unsupported architecture detection" {
-    local test_arch="mips64"
-    local normalized_arch
-
-    case "$test_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    [ "$normalized_arch" = "unsupported" ]
+@test "detect_os handles unsupported architecture" {
+    # Mock uname to return unsupported architecture
+    run bash -c '
+        source tests/helpers/mocks.bash
+        mock_uname "-m" "Linux" "mips64"
+        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
+        detect_os 2>&1
+    '
+    # The script should exit with error code 1 for unsupported architecture
+    [ "$status" -eq 1 ]
 }
 
 # ============================================================================

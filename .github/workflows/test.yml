@@ -3,10 +3,10 @@ name: Test Suite
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   test:
@@ -26,7 +26,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats-core
 
       - name: Install bats-core (macOS)
         if: matrix.os == 'macos-latest'
