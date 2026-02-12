@@ -1,0 +1,280 @@
+#!/bin/bash
+# Bats test helper functions for docker-proxy setup testing
+
+# Load setup.sh functions
+load_setup_functions() {
+    # Source the functions from setup.sh
+    # Using 2>/dev/null to suppress errors if already loaded
+    source ./setup.sh 2>/dev/null || true
+}
+
+# State management helpers
+save_environment_state() {
+    export SAVED_OS_TYPE="$OS_TYPE"
+    export SAVED_ARCH="$ARCH"
+    export SAVED_MKCERT_URL="$MKCERT_URL"
+    export SAVED_MKCERT_OS="$MKCERT_OS"
+    export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
+}
+
+restore_environment_state() {
+    OS_TYPE="$SAVED_OS_TYPE"
+    ARCH="$SAVED_ARCH"
+    MKCERT_URL="$SAVED_MKCERT_URL"
+    MKCERT_OS="$SAVED_MKCERT_OS"
+    MKCERT_ARCH="$SAVED_MKCERT_ARCH"
+}
+
+# Assertion helpers
+assert_variable_set() {
+    local var_name="$1"
+    local var_value="${!var_name}"
+
+    if [[ -z "$var_value" ]]; then
+        echo "❌ FAIL: $var_name not set"
+        return 1
+    else
+        echo "✅ PASS: $var_name is set ($var_value)"
+        return 0
+    fi
+}
+
+assert_variable_equals() {
+    local var_name="$1"
+    local expected="$2"
+    local var_value="${!var_name}"
+
+    if [[ "$var_value" == "$expected" ]]; then
+        echo "✅ PASS: $var_name equals expected value ($expected)"
+        return 0
+    else
+        echo "❌ FAIL: $var_name does not equal expected value"
+        echo "   Expected: $expected"
+        echo "   Got: $var_value"
+        return 1
+    fi
+}
+
+assert_variable_matches() {
+    local var_name="$1"
+    local pattern="$2"
+    local var_value="${!var_name}"
+
+    if [[ "$var_value" =~ $pattern ]]; then
+        echo "✅ PASS: $var_name matches pattern ($var_value)"
+        return 0
+    else
+        echo "❌ FAIL: $var_name does not match pattern"
+        echo "   Pattern: $pattern"
+        echo "   Got: $var_value"
+        return 1
+    fi
+}
+
+assert_command_exists() {
+    local cmd="$1"
+
+    if command -v "$cmd" &>/dev/null; then
+        echo "✅ PASS: Command '$cmd' exists"
+        return 0
+    else
+        echo "❌ FAIL: Command '$cmd' not found"
+        return 1
+    fi
+}
+
+assert_file_exists() {
+    local file="$1"
+
+    if [[ -f "$file" ]]; then
+        echo "✅ PASS: File '$file' exists"
+        return 0
+    else
+        echo "❌ FAIL: File '$file' does not exist"
+        return 1
+    fi
+}
+
+assert_directory_exists() {
+    local dir="$1"
+
+    if [[ -d "$dir" ]]; then
+        echo "✅ PASS: Directory '$dir' exists"
+        return 0
+    else
+        echo "❌ FAIL: Directory '$dir' does not exist"
+        return 1
+    fi
+}
+
+# Mock/stub helpers
+mock_command() {
+    local cmd="$1"
+    local output="$2"
+    local exit_code="${3:-0}"
+
+    eval "$cmd() { echo '$output'; return $exit_code; }"
+}
+
+stub_uname() {
+    local flag="$1"
+    local output="$2"
+
+    uname() {
+        if [[ "$1" == "$flag" ]]; then
+            echo "$output"
+        fi
+    }
+}
+
+# Test data generators
+generate_arch_test_case() {
+    local input_arch="$1"
+    local expected_arch="$2"
+
+    local normalized_arch
+
+    case "$input_arch" in
+        x86_64) normalized_arch="amd64" ;;
+        aarch64|arm64) normalized_arch="arm64" ;;
+        armv7l) normalized_arch="armv7" ;;
+        *) normalized_arch="unsupported" ;;
+    esac
+
+    if [[ "$normalized_arch" == "$expected_arch" ]]; then
+        echo "✅ PASS: $input_arch correctly maps to $expected_arch"
+        return 0
+    else
+        echo "❌ FAIL: $input_arch did not map to $expected_arch (got: $normalized_arch)"
+        return 1
+    fi
+}
+
+# URL validation helpers
+validate_mkcert_url() {
+    local expected_os="$1"
+    local expected_arch="$2"
+    local expected_url="https://dl.filippo.io/mkcert/latest?for=${expected_os}/${expected_arch}"
+
+    if [[ "$MKCERT_URL" == "$expected_url" ]]; then
+        echo "✅ PASS: mkcert URL is correct"
+        echo "   URL: $MKCERT_URL"
+        return 0
+    else
+        echo "❌ FAIL: mkcert URL incorrect"
+        echo "   Expected: $expected_url"
+        echo "   Got: $MKCERT_URL"
+        return 1
+    fi
+}
+
+# Test environment setup
+setup_test_environment() {
+    load_setup_functions
+    save_environment_state
+}
+
+teardown_test_environment() {
+    restore_environment_state
+}
+
+# OS detection test helpers
+test_os_detection_with_values() {
+    local test_os="$1"
+    local test_arch="$2"
+
+    OS_TYPE="$test_os"
+    ARCH="$test_arch"
+    get_mkcert_download_url
+}
+
+# Docker helpers
+assert_docker_network_exists() {
+    local network_name="$1"
+
+    if docker network inspect "$network_name" &>/dev/null; then
+        echo "✅ PASS: Docker network '$network_name' exists"
+        return 0
+    else
+        echo "❌ FAIL: Docker network '$network_name' does not exist"
+        return 1
+    fi
+}
+
+assert_docker_container_running() {
+    local container_name="$1"
+
+    if docker ps --filter "name=$container_name" --filter "status=running" | grep -q "$container_name"; then
+        echo "✅ PASS: Docker container '$container_name' is running"
+        return 0
+    else
+        echo "❌ FAIL: Docker container '$container_name' is not running"
+        return 1
+    fi
+}
+
+# File content helpers
+assert_file_contains() {
+    local file="$1"
+    local pattern="$2"
+
+    if [[ ! -f "$file" ]]; then
+        echo "❌ FAIL: File '$file' does not exist"
+        return 1
+    fi
+
+    if grep -q "$pattern" "$file"; then
+        echo "✅ PASS: File '$file' contains pattern '$pattern'"
+        return 0
+    else
+        echo "❌ FAIL: File '$file' does not contain pattern '$pattern'"
+        return 1
+    fi
+}
+
+# Cleanup helpers
+cleanup_test_files() {
+    local test_dir="${1:-.}"
+
+    # Remove common test artifacts
+    rm -f "$test_dir"/*.test
+    rm -f "$test_dir"/*.tmp
+    rm -rf "$test_dir"/test-*
+}
+
+# Logging helpers for tests
+test_section() {
+    local section_name="$1"
+    echo ""
+    echo "===== $section_name ====="
+}
+
+test_case() {
+    local test_name="$1"
+    echo ""
+    echo "Test: $test_name"
+}
+
+# Export functions for use in bats tests
+export -f load_setup_functions
+export -f save_environment_state
+export -f restore_environment_state
+export -f assert_variable_set
+export -f assert_variable_equals
+export -f assert_variable_matches
+export -f assert_command_exists
+export -f assert_file_exists
+export -f assert_directory_exists
+export -f mock_command
+export -f stub_uname
+export -f generate_arch_test_case
+export -f validate_mkcert_url
+export -f setup_test_environment
+export -f teardown_test_environment
+export -f test_os_detection_with_values
+export -f assert_docker_network_exists
+export -f assert_docker_container_running
+export -f assert_file_contains
+export -f cleanup_test_files
+export -f test_section
+export -f test_case
