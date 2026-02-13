@@ -26,6 +26,12 @@ restore_environment_state() {
 }
 
 # Assertion helpers
+fail() {
+    local message="$1"
+    echo "FAIL: $message" >&2
+    return 1
+}
+
 assert_variable_set() {
     local var_name="$1"
     local var_value="${!var_name}"
@@ -256,6 +262,7 @@ test_case() {
 }
 
 # Export functions for use in bats tests
+export -f fail
 export -f load_setup_functions
 export -f save_environment_state
 export -f restore_environment_state

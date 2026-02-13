@@ -21,7 +21,7 @@ reset_mocks() {
     unset -f apt dpkg dnf yum rpm pacman brew apk
     unset -f mkcert command sudo mkdir cp chmod mktemp mv
 
-    # Clear mock tracking variables
+    # Clear mock tracking variables (including MOCK_COMMAND_EXISTS and MOCK_UNAME_*)
     unset $(set | grep '^MOCK_' | cut -d= -f1)
 }
 
@@ -204,14 +204,18 @@ mock_docker() {
 
 # Mock: command (used for checking if commands exist)
 mock_command() {
-    local cmd_exists=("$@")
+    # Store as a global variable so the exported command function can access it
+    # Using space-separated string instead of array for bash 3.2 compatibility
+    MOCK_COMMAND_EXISTS="$*"
+    export MOCK_COMMAND_EXISTS
 
     command() {
         record_mock_call "command" "$@"
 
         if [[ "$1" == "-v" ]]; then
             local check_cmd="$2"
-            for existing_cmd in "${cmd_exists[@]}"; do
+            # Iterate over space-separated commands
+            for existing_cmd in $MOCK_COMMAND_EXISTS; do
                 if [[ "$check_cmd" == "$existing_cmd" ]]; then
                     echo "/usr/bin/$check_cmd"
                     return 0
