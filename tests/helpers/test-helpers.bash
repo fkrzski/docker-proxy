@@ -221,11 +221,6 @@ export -f assert_file_exists
 export -f assert_directory_exists
 export -f mock_command
 export -f stub_uname
-export -f generate_arch_test_case
-export -f validate_mkcert_url
-export -f setup_test_environment
-export -f teardown_test_environment
-export -f test_os_detection_with_values
 export -f assert_docker_network_exists
 export -f assert_docker_container_running
 export -f assert_file_contains
