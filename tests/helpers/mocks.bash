@@ -79,20 +79,23 @@ set_mock_return() {
 # Mock: uname
 mock_uname() {
     local flag="$1"
-    local os_output="${2:-Linux}"
-    local arch_output="${3:-x86_64}"
+    # Store in global variables so the exported uname function can access them
+    MOCK_UNAME_OS="${2:-Linux}"
+    MOCK_UNAME_ARCH="${3:-x86_64}"
+    export MOCK_UNAME_OS
+    export MOCK_UNAME_ARCH
 
     uname() {
         record_mock_call "uname" "$@"
         case "$1" in
             -s)
-                echo "$os_output"
+                echo "$MOCK_UNAME_OS"
                 ;;
             -m)
-                echo "$arch_output"
+                echo "$MOCK_UNAME_ARCH"
                 ;;
             *)
-                echo "$os_output"
+                echo "$MOCK_UNAME_OS"
                 ;;
         esac
         return 0
