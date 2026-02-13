@@ -7,23 +7,13 @@ load helpers/mocks
 
 # Setup and teardown functions run before/after each test
 setup() {
-    # Save original environment
-    export SAVED_PKG_MANAGER="$PKG_MANAGER"
-    export SAVED_NSS_PACKAGE="$NSS_PACKAGE"
-    export SAVED_INSTALL_CMD="$INSTALL_CMD"
-    export SAVED_CHECK_CMD="$CHECK_CMD"
-
+    save_environment_state
     # Extract just the functions we need from setup.sh
     eval "$(sed -n '/^detect_package_manager()/,/^}/p' ./setup.sh)"
 }
 
 teardown() {
-    # Restore original environment
-    PKG_MANAGER="$SAVED_PKG_MANAGER"
-    NSS_PACKAGE="$SAVED_NSS_PACKAGE"
-    INSTALL_CMD="$SAVED_INSTALL_CMD"
-    CHECK_CMD="$SAVED_CHECK_CMD"
-
+    restore_environment_state
     # Reset mocks
     reset_mocks
 }

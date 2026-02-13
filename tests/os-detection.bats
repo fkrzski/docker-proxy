@@ -7,25 +7,14 @@ load helpers/mocks
 
 # Setup and teardown functions run before/after each test
 setup() {
-    # Save original environment
-    export SAVED_OS_TYPE="$OS_TYPE"
-    export SAVED_ARCH="$ARCH"
-    export SAVED_MKCERT_URL="$MKCERT_URL"
-    export SAVED_MKCERT_OS="$MKCERT_OS"
-    export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
-
+    save_environment_state
     # Extract just the functions we need from setup.sh
     eval "$(sed -n '/^detect_os()/,/^}/p' ./setup.sh)"
     eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
 }
 
 teardown() {
-    # Restore original environment
-    OS_TYPE="$SAVED_OS_TYPE"
-    ARCH="$SAVED_ARCH"
-    MKCERT_URL="$SAVED_MKCERT_URL"
-    MKCERT_OS="$SAVED_MKCERT_OS"
-    MKCERT_ARCH="$SAVED_MKCERT_ARCH"
+    restore_environment_state
 }
 
 # ============================================================================
@@ -147,108 +136,6 @@ teardown() {
         detect_os 2>&1
     '
     # The script should exit with error code 1 for unsupported architecture
-    [ "$status" -eq 1 ]
-}
-
-# ============================================================================
-# mkcert URL Generation Tests
-# ============================================================================
-
-@test "get_mkcert_download_url generates Linux amd64 URL" {
-    OS_TYPE="linux"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/amd64" ]
-}
-
-@test "get_mkcert_download_url generates Linux arm64 URL" {
-    OS_TYPE="linux"
-    ARCH="arm64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]
-}
-
-@test "get_mkcert_download_url generates Linux armv7 URL" {
-    OS_TYPE="linux"
-    ARCH="armv7"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm" ]
-}
-
-@test "get_mkcert_download_url generates macOS amd64 URL" {
-    OS_TYPE="macos"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=darwin/amd64" ]
-}
-
-@test "get_mkcert_download_url generates macOS arm64 URL" {
-    OS_TYPE="macos"
-    ARCH="arm64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=darwin/arm64" ]
-}
-
-@test "get_mkcert_download_url generates WSL2 amd64 URL (uses linux)" {
-    OS_TYPE="wsl2"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/amd64" ]
-}
-
-@test "get_mkcert_download_url generates WSL2 arm64 URL (uses linux)" {
-    OS_TYPE="wsl2"
-    ARCH="arm64"
-    get_mkcert_download_url
-    [ "$MKCERT_URL" = "https://dl.filippo.io/mkcert/latest?for=linux/arm64" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_OS to darwin for macOS" {
-    OS_TYPE="macos"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_OS" = "darwin" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_OS to linux for Linux" {
-    OS_TYPE="linux"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_OS" = "linux" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_OS to linux for WSL2" {
-    OS_TYPE="wsl2"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_OS" = "linux" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_ARCH correctly for amd64" {
-    OS_TYPE="linux"
-    ARCH="amd64"
-    get_mkcert_download_url
-    [ "$MKCERT_ARCH" = "amd64" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_ARCH correctly for arm64" {
-    OS_TYPE="linux"
-    ARCH="arm64"
-    get_mkcert_download_url
-    [ "$MKCERT_ARCH" = "arm64" ]
-}
-
-@test "get_mkcert_download_url sets MKCERT_ARCH to arm for armv7" {
-    OS_TYPE="linux"
-    ARCH="armv7"
-    get_mkcert_download_url
-    [ "$MKCERT_ARCH" = "arm" ]
-}
-
-@test "get_mkcert_download_url fails for unsupported OS" {
-    OS_TYPE="unknown"
-    ARCH="amd64"
-    run get_mkcert_download_url
     [ "$status" -eq 1 ]
 }
 

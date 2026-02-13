@@ -22,7 +22,7 @@ reset_mocks() {
     unset -f mkcert command sudo mkdir cp chmod mktemp mv
 
     # Clear mock tracking variables (including MOCK_COMMAND_EXISTS and MOCK_UNAME_*)
-    unset $(set | grep '^MOCK_' | cut -d= -f1)
+    for var in $(compgen -v MOCK_); do unset "$var"; done
 }
 
 # Record mock call
@@ -37,13 +37,14 @@ record_mock_call() {
     local args_var="MOCK_CALL_ARGS_${var_suffix}"
 
     # Get current count
-    local current_count=$(eval "echo \${${count_var}:-0}")
+    local current_count=${!count_var:-0}
 
     # Increment call count
-    eval "${count_var}=$((current_count + 1))"
+    printf -v "$count_var" "%d" $((current_count + 1))
 
     # Store arguments (using \x1f as separator - less likely to appear in arguments)
-    eval "${args_var}=\"\${${args_var}}\$'\\x1f'\$args\""
+    local current_args="${!args_var}"
+    printf -v "$args_var" "%s" "${current_args}$'\x1f'${args}"
 }
 
 # Get mock call count
@@ -51,7 +52,7 @@ get_mock_call_count() {
     local cmd="$1"
     local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
     local count_var="MOCK_CALL_COUNT_${var_suffix}"
-    eval "echo \${${count_var}:-0}"
+    echo "${!count_var:-0}"
 }
 
 # Get mock call arguments
@@ -59,7 +60,7 @@ get_mock_call_args() {
     local cmd="$1"
     local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
     local args_var="MOCK_CALL_ARGS_${var_suffix}"
-    eval "echo \"\${${args_var}}\""
+    echo "${!args_var}"
 }
 
 # Set mock return value
@@ -72,8 +73,8 @@ set_mock_return() {
     local return_var="MOCK_RETURN_VALUES_${var_suffix}"
     local exit_var="MOCK_EXIT_CODES_${var_suffix}"
 
-    eval "${return_var}=\"\${return_value}\""
-    eval "${exit_var}=\${exit_code}"
+    printf -v "$return_var" "%s" "${return_value}"
+    printf -v "$exit_var" "%d" "${exit_code}"
 }
 
 # Mock: uname

@@ -7,24 +7,13 @@ load helpers/mocks
 
 # Setup and teardown functions run before/after each test
 setup() {
-    # Save original environment
-    export SAVED_OS_TYPE="$OS_TYPE"
-    export SAVED_ARCH="$ARCH"
-    export SAVED_MKCERT_URL="$MKCERT_URL"
-    export SAVED_MKCERT_OS="$MKCERT_OS"
-    export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
-
+    save_environment_state
     # Extract just the functions we need from setup.sh
     eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
 }
 
 teardown() {
-    # Restore original environment
-    OS_TYPE="$SAVED_OS_TYPE"
-    ARCH="$SAVED_ARCH"
-    MKCERT_URL="$SAVED_MKCERT_URL"
-    MKCERT_OS="$SAVED_MKCERT_OS"
-    MKCERT_ARCH="$SAVED_MKCERT_ARCH"
+    restore_environment_state
 }
 
 # ============================================================================

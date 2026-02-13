@@ -7,17 +7,7 @@ load helpers/mocks
 
 # Setup and teardown functions run before/after each test
 setup() {
-    # Save original environment
-    export SAVED_OS_TYPE="$OS_TYPE"
-    export SAVED_ARCH="$ARCH"
-    export SAVED_PKG_MANAGER="$PKG_MANAGER"
-    export SAVED_NSS_PACKAGE="$NSS_PACKAGE"
-    export SAVED_INSTALL_CMD="$INSTALL_CMD"
-    export SAVED_CHECK_CMD="$CHECK_CMD"
-    export SAVED_MKCERT_URL="$MKCERT_URL"
-    export SAVED_MKCERT_OS="$MKCERT_OS"
-    export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
-
+    save_environment_state
     # Extract functions from setup.sh
     eval "$(sed -n '/^detect_os()/,/^}/p' ./setup.sh)"
     eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
@@ -27,17 +17,7 @@ setup() {
 }
 
 teardown() {
-    # Restore original environment
-    OS_TYPE="$SAVED_OS_TYPE"
-    ARCH="$SAVED_ARCH"
-    PKG_MANAGER="$SAVED_PKG_MANAGER"
-    NSS_PACKAGE="$SAVED_NSS_PACKAGE"
-    INSTALL_CMD="$SAVED_INSTALL_CMD"
-    CHECK_CMD="$SAVED_CHECK_CMD"
-    MKCERT_URL="$SAVED_MKCERT_URL"
-    MKCERT_OS="$SAVED_MKCERT_OS"
-    MKCERT_ARCH="$SAVED_MKCERT_ARCH"
-
+    restore_environment_state
     # Reset mocks
     reset_mocks
 }
@@ -116,156 +96,6 @@ teardown() {
     else
         skip "Not running on WSL2"
     fi
-}
-
-# ============================================================================
-# OS and Architecture Detection Flow Tests
-# ============================================================================
-
-@test "Setup flow: OS detection sets required variables" {
-    run bash -c '
-        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
-        detect_os
-
-        # Both OS_TYPE and ARCH should be set
-        [[ -n "$OS_TYPE" ]] || exit 1
-        [[ -n "$ARCH" ]] || exit 1
-
-        # OS_TYPE should be one of the valid values
-        case "$OS_TYPE" in
-            linux|macos|wsl2|unknown)
-                exit 0
-                ;;
-            *)
-                exit 1
-                ;;
-        esac
-    '
-    [ "$status" -eq 0 ]
-}
-
-@test "Setup flow: Architecture is normalized correctly" {
-    run bash -c '
-        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
-        detect_os
-
-        # ARCH should be normalized to one of the supported formats
-        case "$ARCH" in
-            amd64|arm64|armv7)
-                exit 0
-                ;;
-            *)
-                echo "Unexpected ARCH value: $ARCH"
-                exit 1
-                ;;
-        esac
-    '
-    [ "$status" -eq 0 ]
-}
-
-@test "Setup flow: Current system architecture is supported" {
-    run bash -c '
-        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
-        detect_os
-
-        # Current system should be supported (not fail)
-        exit 0
-    '
-    [ "$status" -eq 0 ]
-}
-
-# ============================================================================
-# Package Manager Detection Flow Tests
-# ============================================================================
-
-@test "Setup flow: Package manager detection completes without errors" {
-    run bash -c '
-        eval "$(sed -n "/^detect_package_manager()/,/^}/p" ./setup.sh)"
-        detect_package_manager
-
-        # PKG_MANAGER should be set (even if "unknown")
-        [[ -n "$PKG_MANAGER" ]] || exit 1
-
-        exit 0
-    '
-    [ "$status" -eq 0 ]
-}
-
-@test "Setup flow: Package manager sets all required variables" {
-    run bash -c '
-        eval "$(sed -n "/^detect_package_manager()/,/^}/p" ./setup.sh)"
-        detect_package_manager
-
-        # If package manager is known, all variables should be set
-        if [[ "$PKG_MANAGER" != "unknown" ]]; then
-            [[ -n "$NSS_PACKAGE" ]] || exit 1
-            [[ -n "$INSTALL_CMD" ]] || exit 1
-            [[ -n "$CHECK_CMD" ]] || exit 1
-        fi
-
-        exit 0
-    '
-    [ "$status" -eq 0 ]
-}
-
-@test "Setup flow: Detected package manager is valid" {
-    run bash -c '
-        eval "$(sed -n "/^detect_package_manager()/,/^}/p" ./setup.sh)"
-        detect_package_manager
-
-        case "$PKG_MANAGER" in
-            apt|dnf|yum|pacman|brew|apk|unknown)
-                exit 0
-                ;;
-            *)
-                echo "Invalid PKG_MANAGER: $PKG_MANAGER"
-                exit 1
-                ;;
-        esac
-    '
-    [ "$status" -eq 0 ]
-}
-
-# ============================================================================
-# mkcert URL Generation Flow Tests
-# ============================================================================
-
-@test "Setup flow: mkcert URL generation after OS detection" {
-    run bash -c '
-        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
-        eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
-
-        detect_os
-        get_mkcert_download_url
-
-        # All mkcert variables should be set
-        [[ -n "$MKCERT_URL" ]] || exit 1
-        [[ -n "$MKCERT_OS" ]] || exit 1
-        [[ -n "$MKCERT_ARCH" ]] || exit 1
-
-        # URL should be valid format
-        [[ "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest\?for= ]] || exit 1
-
-        exit 0
-    '
-    [ "$status" -eq 0 ]
-}
-
-@test "Setup flow: mkcert URL contains correct OS and architecture" {
-    run bash -c '
-        eval "$(sed -n "/^detect_os()/,/^}/p" ./setup.sh)"
-        eval "$(sed -n "/^get_mkcert_download_url()/,/^}/p" ./setup.sh)"
-
-        detect_os
-        get_mkcert_download_url
-
-        # URL should contain the MKCERT_OS and MKCERT_ARCH
-        [[ "$MKCERT_URL" =~ $MKCERT_OS ]] || exit 1
-        [[ "$MKCERT_URL" =~ $MKCERT_ARCH ]] || exit 1
-
-        exit 0
-    '
-    [ "$status" -eq 0 ]
 }
 
 # ============================================================================

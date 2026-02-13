@@ -200,7 +200,7 @@ brew install bats-core
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get install bats-core
+sudo apt install bats-core
 ```
 
 **Fedora/RHEL:**

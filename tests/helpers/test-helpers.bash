@@ -15,6 +15,10 @@ save_environment_state() {
     export SAVED_MKCERT_URL="$MKCERT_URL"
     export SAVED_MKCERT_OS="$MKCERT_OS"
     export SAVED_MKCERT_ARCH="$MKCERT_ARCH"
+    export SAVED_PKG_MANAGER="$PKG_MANAGER"
+    export SAVED_NSS_PACKAGE="$NSS_PACKAGE"
+    export SAVED_INSTALL_CMD="$INSTALL_CMD"
+    export SAVED_CHECK_CMD="$CHECK_CMD"
 }
 
 restore_environment_state() {
@@ -23,6 +27,10 @@ restore_environment_state() {
     MKCERT_URL="$SAVED_MKCERT_URL"
     MKCERT_OS="$SAVED_MKCERT_OS"
     MKCERT_ARCH="$SAVED_MKCERT_ARCH"
+    PKG_MANAGER="$SAVED_PKG_MANAGER"
+    NSS_PACKAGE="$SAVED_NSS_PACKAGE"
+    INSTALL_CMD="$SAVED_INSTALL_CMD"
+    CHECK_CMD="$SAVED_CHECK_CMD"
 }
 
 # Assertion helpers
@@ -131,67 +139,6 @@ stub_uname() {
             echo "$output"
         fi
     }
-}
-
-# Test data generators
-generate_arch_test_case() {
-    local input_arch="$1"
-    local expected_arch="$2"
-
-    local normalized_arch
-
-    case "$input_arch" in
-        x86_64) normalized_arch="amd64" ;;
-        aarch64|arm64) normalized_arch="arm64" ;;
-        armv7l) normalized_arch="armv7" ;;
-        *) normalized_arch="unsupported" ;;
-    esac
-
-    if [[ "$normalized_arch" == "$expected_arch" ]]; then
-        echo "✅ PASS: $input_arch correctly maps to $expected_arch"
-        return 0
-    else
-        echo "❌ FAIL: $input_arch did not map to $expected_arch (got: $normalized_arch)"
-        return 1
-    fi
-}
-
-# URL validation helpers
-validate_mkcert_url() {
-    local expected_os="$1"
-    local expected_arch="$2"
-    local expected_url="https://dl.filippo.io/mkcert/latest?for=${expected_os}/${expected_arch}"
-
-    if [[ "$MKCERT_URL" == "$expected_url" ]]; then
-        echo "✅ PASS: mkcert URL is correct"
-        echo "   URL: $MKCERT_URL"
-        return 0
-    else
-        echo "❌ FAIL: mkcert URL incorrect"
-        echo "   Expected: $expected_url"
-        echo "   Got: $MKCERT_URL"
-        return 1
-    fi
-}
-
-# Test environment setup
-setup_test_environment() {
-    load_setup_functions
-    save_environment_state
-}
-
-teardown_test_environment() {
-    restore_environment_state
-}
-
-# OS detection test helpers
-test_os_detection_with_values() {
-    local test_os="$1"
-    local test_arch="$2"
-
-    OS_TYPE="$test_os"
-    ARCH="$test_arch"
-    get_mkcert_download_url
 }
 
 # Docker helpers
