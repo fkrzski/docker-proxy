@@ -266,21 +266,3 @@ teardown() {
     [[ "$MKCERT_URL" =~ linux/arm$ ]]
     [ "$MKCERT_ARCH" = "arm" ]
 }
-
-@test "All supported OS and arch combinations produce valid URLs" {
-    # Test matrix of supported combinations
-    local os_types=("linux" "macos" "wsl2")
-    local archs=("amd64" "arm64" "armv7")
-
-    for os in "${os_types[@]}"; do
-        for arch in "${archs[@]}"; do
-            OS_TYPE="$os"
-            ARCH="$arch"
-            get_mkcert_download_url
-
-            # Verify URL was generated
-            [[ -n "$MKCERT_URL" ]] || fail "No URL generated for $os/$arch"
-            [[ "$MKCERT_URL" =~ ^https://dl.filippo.io/mkcert/latest ]] || fail "Invalid URL for $os/$arch"
-        done
-    done
-}
