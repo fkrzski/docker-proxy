@@ -121,30 +121,6 @@ assert_directory_exists() {
     fi
 }
 
-# Mock/stub helpers
-mock_command() {
-    local cmd="$1"
-    local output="$2"
-    local exit_code="${3:-0}"
-
-    if ! [[ "$cmd" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]; then
-        fail "Invalid command name for mock: $cmd"
-        return 1
-    fi
-    eval "$cmd() { echo '$output'; return $exit_code; }"
-}
-
-stub_uname() {
-    local flag="$1"
-    local output="$2"
-
-    uname() {
-        if [[ "$1" == "$flag" ]]; then
-            echo "$output"
-        fi
-    }
-}
-
 # Docker helpers
 assert_docker_network_exists() {
     local network_name="$1"
@@ -223,8 +199,6 @@ export -f assert_variable_matches
 export -f assert_command_exists
 export -f assert_file_exists
 export -f assert_directory_exists
-export -f mock_command
-export -f stub_uname
 export -f assert_docker_network_exists
 export -f assert_docker_container_running
 export -f assert_file_contains

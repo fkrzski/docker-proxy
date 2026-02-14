@@ -1,6 +1,7 @@
 name: Test Suite
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -25,9 +26,9 @@ jobs:
       - name: Install bats-core (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
+          sudo apt update
           # Try to install from apt first, fall back to git installation
-          if ! sudo apt-get install -y bats 2>/dev/null && ! sudo apt-get install -y bats-core 2>/dev/null; then
+          if ! sudo apt install -y bats 2>/dev/null && ! sudo apt install -y bats-core 2>/dev/null; then
             # Install from source if package not available
             git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
             cd /tmp/bats-core
@@ -43,13 +44,13 @@ jobs:
         run: |
           bats --version
 
-      - name: Run OS detection tests
-        run: |
-          bats tests/os-detection.bats
-
       - name: Run mkcert tests
         run: |
           bats tests/mkcert.bats
+
+      - name: Run OS detection tests
+        run: |
+          bats tests/os-detection.bats
 
       - name: Run package manager tests
         run: |
@@ -58,7 +59,3 @@ jobs:
       - name: Run setup flow tests
         run: |
           bats tests/setup.bats
-
-      - name: Run all tests
-        run: |
-          bats tests/*.bats

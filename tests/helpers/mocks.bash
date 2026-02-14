@@ -47,22 +47,6 @@ record_mock_call() {
     printf -v "$args_var" "%s" "${current_args}$'\x1f'${args}"
 }
 
-# Get mock call count
-get_mock_call_count() {
-    local cmd="$1"
-    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
-    local count_var="MOCK_CALL_COUNT_${var_suffix}"
-    echo "${!count_var:-0}"
-}
-
-# Get mock call arguments
-get_mock_call_args() {
-    local cmd="$1"
-    local var_suffix=$(echo "$cmd" | tr '[:lower:]' '[:upper:]' | tr -c '[:alnum:]' '_')
-    local args_var="MOCK_CALL_ARGS_${var_suffix}"
-    echo "${!args_var}"
-}
-
 # Set mock return value
 set_mock_return() {
     local cmd="$1"
@@ -123,11 +107,9 @@ mock_grep() {
         local case_insensitive=false
 
         while [[ "$1" == -* ]]; do
-            case "$1" in
-                -q|-qi) quiet=true ;;
-                -i) case_insensitive=true ;;
-                -v) invert=true ;;
-            esac
+            if [[ "$1" =~ q ]]; then quiet=true; fi
+            if [[ "$1" =~ i ]]; then case_insensitive=true; fi
+            if [[ "$1" =~ v ]]; then invert=true; fi
             shift
         done
 
@@ -554,8 +536,6 @@ setup_mock_environment() {
 export -f init_mocks
 export -f reset_mocks
 export -f record_mock_call
-export -f get_mock_call_count
-export -f get_mock_call_args
 export -f set_mock_return
 export -f mock_uname
 export -f mock_grep
