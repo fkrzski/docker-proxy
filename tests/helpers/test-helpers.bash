@@ -127,6 +127,10 @@ mock_command() {
     local output="$2"
     local exit_code="${3:-0}"
 
+    if ! [[ "$cmd" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]; then
+        fail "Invalid command name for mock: $cmd"
+        return 1
+    fi
     eval "$cmd() { echo '$output'; return $exit_code; }"
 }
 

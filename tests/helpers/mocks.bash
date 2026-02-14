@@ -132,10 +132,10 @@ mock_grep() {
         done
 
         if [[ "$quiet" == "false" ]]; then
-            eval "echo \"\${MOCK_RETURN_VALUES_GREP}\""
+            echo "${MOCK_RETURN_VALUES_GREP}"
         fi
 
-        eval "return \${MOCK_EXIT_CODES_GREP:-$exit_code}"
+        return "${MOCK_EXIT_CODES_GREP:-$exit_code}"
     }
     export -f grep
 }
@@ -148,11 +148,11 @@ mock_curl() {
         record_mock_call "curl" "$@"
 
         if [[ "$success" == "true" ]]; then
-            eval "echo \"\${MOCK_RETURN_VALUES_CURL:-mocked curl output}\""
+            echo "${MOCK_RETURN_VALUES_CURL:-mocked curl output}"
             return 0
         else
             echo "curl: error" >&2
-            eval "return \${MOCK_EXIT_CODES_CURL:-1}"
+            return "${MOCK_EXIT_CODES_CURL:-1}"
         fi
     }
     export -f curl
@@ -191,12 +191,12 @@ mock_docker() {
                 fi
                 ;;
             compose|ps|logs)
-                eval "echo \"\${MOCK_RETURN_VALUES_DOCKER}\""
-                eval "return \${MOCK_EXIT_CODES_DOCKER:-0}"
+                echo "${MOCK_RETURN_VALUES_DOCKER}"
+                return "${MOCK_EXIT_CODES_DOCKER:-0}"
                 ;;
             *)
-                eval "echo \"\${MOCK_RETURN_VALUES_DOCKER}\""
-                eval "return \${MOCK_EXIT_CODES_DOCKER:-0}"
+                echo "${MOCK_RETURN_VALUES_DOCKER}"
+                return "${MOCK_EXIT_CODES_DOCKER:-0}"
                 ;;
         esac
     }
