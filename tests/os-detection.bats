@@ -9,8 +9,8 @@ load helpers/mocks
 setup() {
     save_environment_state
     # Extract just the functions we need from setup.sh
-    eval "$(sed -n '/^detect_os()/,/^}/p' ./setup.sh)"
-    eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
+    load_setup_function detect_os
+    load_setup_function get_mkcert_download_url
 }
 
 teardown() {

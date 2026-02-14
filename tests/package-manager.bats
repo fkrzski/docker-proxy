@@ -9,7 +9,7 @@ load helpers/mocks
 setup() {
     save_environment_state
     # Extract just the functions we need from setup.sh
-    eval "$(sed -n '/^detect_package_manager()/,/^}/p' ./setup.sh)"
+    load_setup_function detect_package_manager
 }
 
 teardown() {

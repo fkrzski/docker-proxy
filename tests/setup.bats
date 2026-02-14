@@ -9,11 +9,11 @@ load helpers/mocks
 setup() {
     save_environment_state
     # Extract functions from setup.sh
-    eval "$(sed -n '/^detect_os()/,/^}/p' ./setup.sh)"
-    eval "$(sed -n '/^get_mkcert_download_url()/,/^}/p' ./setup.sh)"
-    eval "$(sed -n '/^detect_package_manager()/,/^}/p' ./setup.sh)"
-    eval "$(sed -n '/^check_nss_installed()/,/^}/p' ./setup.sh)"
-    eval "$(sed -n '/^get_windows_username()/,/^}/p' ./setup.sh)"
+    load_setup_function detect_os
+    load_setup_function get_mkcert_download_url
+    load_setup_function detect_package_manager
+    load_setup_function check_nss_installed
+    load_setup_function get_windows_username
 }
 
 teardown() {

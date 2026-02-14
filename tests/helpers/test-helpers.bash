@@ -8,6 +8,13 @@ load_setup_functions() {
     source ./setup.sh 2>/dev/null || true
 }
 
+# Load a specific function from setup.sh
+# This avoids duplicating the eval "$(sed ...)" pattern across test files
+load_setup_function() {
+    local func_name="$1"
+    eval "$(sed -n "/^${func_name}()/,/^}/p" ./setup.sh)"
+}
+
 # State management helpers
 save_environment_state() {
     export SAVED_OS_TYPE="$OS_TYPE"
@@ -191,6 +198,7 @@ test_case() {
 # Export functions for use in bats tests
 export -f fail
 export -f load_setup_functions
+export -f load_setup_function
 export -f save_environment_state
 export -f restore_environment_state
 export -f assert_variable_set
