@@ -138,7 +138,7 @@ MySQL is not exposed to the host by default for security. To connect from your h
 docker exec -it mysql mysql -u root -p
 
 # Execute a single command
-docker exec mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW DATABASES;"
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root -e "SHOW DATABASES;"
 ```
 
 **Option 2: Expose Port (Less Secure)**
@@ -178,12 +178,12 @@ docker exec mysql mysqladmin ping -h localhost
 docker exec mysql mysql -V
 
 # List databases
-docker exec mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW DATABASES;"
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root -e "SHOW DATABASES;"
 ```
 
 **Create a Database and User:**
 ```bash
-docker exec -i mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} <<EOF
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root <<EOF
 CREATE DATABASE IF NOT EXISTS myapp;
 CREATE USER IF NOT EXISTS 'myapp_user'@'%' IDENTIFIED BY 'secure_password';
 GRANT ALL PRIVILEGES ON myapp.* TO 'myapp_user'@'%';
@@ -218,7 +218,7 @@ This has been removed to use MySQL 8.0's secure default (`caching_sha2_password`
 
 Review which authentication plugin each user currently uses:
 ```bash
-docker exec mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} -e \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root -e \
   "SELECT user, host, plugin FROM mysql.user;"
 ```
 
@@ -253,25 +253,25 @@ Always backup your data before making authentication changes:
 
 ```bash
 # Backup all databases
-docker exec mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
   --all-databases > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Backup a specific database
-docker exec mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
   myapp > myapp_backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Backup with routines and triggers
-docker exec mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
   --routines --triggers --all-databases > full_backup.sql
 ```
 
 **Restore from Backup:**
 ```bash
 # Restore all databases
-docker exec -i mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} < backup.sql
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root < backup.sql
 
 # Restore specific database
-docker exec -i mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} myapp < myapp_backup.sql
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root myapp < myapp_backup.sql
 ```
 
 ## Using Legacy Authentication
@@ -544,11 +544,11 @@ echo $MYSQL_ROOT_PASSWORD
 grep MYSQL_ROOT_PASSWORD .env
 
 # Check user privileges
-docker exec mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} -e \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root -e \
   "SELECT user, host FROM mysql.user;"
 
 # Create user with correct host pattern
-docker exec mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} -e \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root -e \
   "CREATE USER 'myuser'@'%' IDENTIFIED BY 'password';"
 ```
 
@@ -585,7 +585,7 @@ docker logs mysql
 
 # Common fix: Reset data volume if corrupted
 docker compose down
-docker volume rm <project_name>_mysql_data
+docker volume rm <project_directory>_mysql_data
 docker compose up -d
 
 # Check disk space
@@ -646,7 +646,7 @@ FLUSH PRIVILEGES;
 ```bash
 # Create backup script
 #!/bin/bash
-docker exec mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
   --all-databases > mysql_backup_$(date +%Y%m%d).sql
 ```
 
