@@ -647,7 +647,7 @@ FLUSH PRIVILEGES;
 # Create backup script
 #!/bin/bash
 docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
-  --all-databases > mysql_backup_$(date +%Y%m%d).sql
+  --all-databases > mysql_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### 5. Monitor Disk Usage
