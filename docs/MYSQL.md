@@ -253,15 +253,15 @@ Always backup your data before making authentication changes:
 
 ```bash
 # Backup all databases
-docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysqldump -u root \
   --all-databases > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Backup a specific database
-docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysqldump -u root \
   myapp > myapp_backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Backup with routines and triggers
-docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysqldump -u root \
   --routines --triggers --all-databases > full_backup.sql
 ```
 
@@ -646,7 +646,7 @@ FLUSH PRIVILEGES;
 ```bash
 # Create backup script
 #!/bin/bash
-docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysql -u root \
+docker exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql mysqldump -u root \
   --all-databases > mysql_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
