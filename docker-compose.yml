@@ -109,6 +109,29 @@ services:
       - "traefik.http.routers.pma.rule=Host(`pma.docker.localhost`)"
       - "traefik.http.routers.pma.tls=true"
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    profiles:
+      - mail
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - traefik-proxy
+    logging: *default-logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailpit.rule=Host(`mail.docker.localhost`)"
+      - "traefik.http.routers.mailpit.tls=true"
+      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
+
 volumes:
   mysql_data:
 
