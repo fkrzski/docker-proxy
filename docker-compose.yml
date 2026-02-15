@@ -82,6 +82,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    command: --default-authentication-plugin=mysql_native_password
 
   pma:
     image: phpmyadmin/phpmyadmin
