@@ -16,6 +16,7 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
 - [Common Scenarios](#common-scenarios)
   - [Multi-Service Project (Frontend + Backend)](#multi-service-project-frontend--backend)
   - [Using Proxy-Provided MySQL and Redis](#using-proxy-provided-mysql-and-redis)
+  - [Using Proxy-Provided Mailpit Email Testing](#using-proxy-provided-mailpit-email-testing)
   - [Custom Domain Patterns](#custom-domain-patterns)
   - [Path-Based Routing](#path-based-routing)
   - [Multiple Domains for One Service](#multiple-domains-for-one-service)
@@ -3306,6 +3307,934 @@ DATABASE_URL = "mysql://root:root@mysql:3306/fastapi_app"
 import redis
 redis_client = redis.Redis(host='redis', port=6379, db=0)
 ```
+
+---
+
+### Using Proxy-Provided Mailpit Email Testing
+
+Instead of sending real emails during development or configuring external email services, you can use the centralized Mailpit service provided by the proxy. Mailpit captures all outgoing emails, allowing you to inspect them through a web interface.
+
+**What is Mailpit?**
+
+Mailpit is a modern email testing tool (successor to MailHog) that:
+- Captures all emails sent via SMTP
+- Provides a web interface to view emails
+- Supports attachments, HTML emails, and multipart messages
+- Offers a REST API for automated testing
+- Requires zero configuration on the email receiving side
+
+**Benefits:**
+- Test email functionality without sending real emails
+- View emails in a web interface at `https://mail.docker.localhost`
+- Single Mailpit instance for all projects
+- Inspect HTML rendering, attachments, and headers
+- API access for automated testing
+- No email deliverability issues or spam concerns
+
+**Prerequisites:**
+
+1. **Enable Mailpit in the proxy:**
+
+   Edit the proxy's `.env` file:
+   ```bash
+   COMPOSE_PROFILES=mail
+   # Or combine with other services:
+   COMPOSE_PROFILES=redis,mysql,pma,mail
+   ```
+
+   Restart the proxy:
+   ```bash
+   cd /path/to/docker-proxy
+   docker compose up -d
+   ```
+
+2. **Verify Mailpit is running:**
+   ```bash
+   docker ps | grep mailpit
+   ```
+
+   You should see the `mailpit` container running.
+
+3. **Access the Mailpit web interface:**
+
+   Open [https://mail.docker.localhost](https://mail.docker.localhost) in your browser.
+
+**SMTP Configuration:**
+
+All applications should use these settings to send emails through Mailpit:
+- **SMTP Host:** `mailpit`
+- **SMTP Port:** `1025`
+- **Encryption:** None (not required for local development)
+- **Authentication:** None (not required)
+
+**Network Requirement:** Your application must be on the `traefik-proxy` network to access Mailpit.
+
+---
+
+#### Laravel Configuration
+
+Laravel makes email configuration simple with environment variables.
+
+**compose.yml:**
+```yaml
+services:
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    environment:
+      # Mailpit configuration
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=mailpit
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=null
+      - MAIL_PASSWORD=null
+      - MAIL_ENCRYPTION=null
+      - MAIL_FROM_ADDRESS=hello@example.com
+      - MAIL_FROM_NAME="${APP_NAME}"
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel.rule=Host(`laravel.docker.localhost`)"
+      - "traefik.http.routers.laravel.tls=true"
+      - "traefik.http.services.laravel.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**.env file:**
+```dotenv
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=hello@example.com
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+**Testing email sending:**
+```bash
+# Enter Laravel container
+docker compose exec laravel bash
+
+# Send a test email using Artisan tinker
+php artisan tinker
+>>> Mail::raw('Test email from Laravel', function($message) {
+...     $message->to('test@example.com')->subject('Test');
+... });
+```
+
+Check [https://mail.docker.localhost](https://mail.docker.localhost) to see the captured email.
+
+---
+
+#### Symfony Configuration
+
+Symfony uses the Mailer component with DSN configuration.
+
+**compose.yml:**
+```yaml
+services:
+  symfony:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: symfony-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    environment:
+      - MAILER_DSN=smtp://mailpit:1025
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.symfony.rule=Host(`symfony.docker.localhost`)"
+      - "traefik.http.routers.symfony.tls=true"
+      - "traefik.http.services.symfony.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**.env file:**
+```dotenv
+MAILER_DSN=smtp://mailpit:1025
+```
+
+**services.yaml (optional explicit configuration):**
+```yaml
+framework:
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+```
+
+---
+
+#### Django Configuration
+
+Django uses the built-in email backend with SMTP settings.
+
+**compose.yml:**
+```yaml
+services:
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - EMAIL_HOST=mailpit
+      - EMAIL_PORT=1025
+      - EMAIL_USE_TLS=False
+      - EMAIL_USE_SSL=False
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.django.rule=Host(`django.docker.localhost`)"
+      - "traefik.http.routers.django.tls=true"
+      - "traefik.http.services.django.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**settings.py:**
+```python
+import os
+
+# Email configuration for Mailpit
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'mailpit')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 1025))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() == 'true'
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@example.com')
+```
+
+**Testing email sending:**
+```bash
+# Enter Django container
+docker compose exec django bash
+
+# Send a test email using Django shell
+python manage.py shell
+>>> from django.core.mail import send_mail
+>>> send_mail('Test Subject', 'Test body', 'from@example.com', ['to@example.com'])
+```
+
+---
+
+#### Ruby on Rails Configuration
+
+Rails uses Action Mailer with SMTP configuration.
+
+**compose.yml:**
+```yaml
+services:
+  rails:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rails-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - SMTP_ADDRESS=mailpit
+      - SMTP_PORT=1025
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rails.rule=Host(`rails.docker.localhost`)"
+      - "traefik.http.routers.rails.tls=true"
+      - "traefik.http.services.rails.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**config/environments/development.rb:**
+```ruby
+Rails.application.configure do
+  # Mailpit configuration
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: ENV.fetch('SMTP_ADDRESS', 'mailpit'),
+    port: ENV.fetch('SMTP_PORT', 1025).to_i
+  }
+
+  # Enable email sending in development
+  config.action_mailer.perform_deliveries = true
+  config.action_mailer.raise_delivery_errors = true
+  config.action_mailer.default_url_options = { host: 'rails.docker.localhost', protocol: 'https' }
+end
+```
+
+**Testing email sending:**
+```bash
+# Enter Rails container
+docker compose exec rails bash
+
+# Send a test email using Rails console
+rails console
+irb> ActionMailer::Base.mail(from: 'test@example.com', to: 'user@example.com', subject: 'Test', body: 'Hello!').deliver_now
+```
+
+---
+
+#### Node.js (Nodemailer) Configuration
+
+Node.js applications commonly use Nodemailer for sending emails.
+
+**compose.yml:**
+```yaml
+services:
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nodejs-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nodejs.rule=Host(`nodejs.docker.localhost`)"
+      - "traefik.http.routers.nodejs.tls=true"
+      - "traefik.http.services.nodejs.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**mail.js (Nodemailer configuration):**
+```javascript
+const nodemailer = require('nodemailer');
+
+// Create Mailpit transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'mailpit',
+  port: parseInt(process.env.SMTP_PORT, 10) || 1025,
+  secure: false, // No TLS for local development
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Send email function
+async function sendEmail(to, subject, html) {
+  const info = await transporter.sendMail({
+    from: '"My App" <noreply@example.com>',
+    to: to,
+    subject: subject,
+    html: html
+  });
+
+  console.log('Message sent: %s', info.messageId);
+  return info;
+}
+
+module.exports = { sendEmail, transporter };
+```
+
+**Testing email sending:**
+```javascript
+// test-email.js
+const { sendEmail } = require('./mail');
+
+sendEmail('user@example.com', 'Test Email', '<h1>Hello!</h1><p>This is a test.</p>')
+  .then(() => console.log('Email sent successfully!'))
+  .catch(console.error);
+```
+
+```bash
+# Run the test script
+docker compose exec nodejs node test-email.js
+```
+
+---
+
+#### Express.js with TypeScript Configuration
+
+For TypeScript Express applications using Nodemailer.
+
+**src/config/mail.ts:**
+```typescript
+import nodemailer, { Transporter } from 'nodemailer';
+
+interface MailConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+}
+
+const mailConfig: MailConfig = {
+  host: process.env.SMTP_HOST || 'mailpit',
+  port: parseInt(process.env.SMTP_PORT || '1025', 10),
+  secure: false
+};
+
+export const transporter: Transporter = nodemailer.createTransport(mailConfig);
+
+export async function sendMail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || 'noreply@example.com',
+    to,
+    subject,
+    html
+  });
+}
+```
+
+---
+
+#### NestJS Configuration
+
+NestJS with the @nestjs-modules/mailer package.
+
+**compose.yml:**
+```yaml
+services:
+  nestjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nestjs-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - MAIL_FROM=noreply@example.com
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nestjs.rule=Host(`nestjs.docker.localhost`)"
+      - "traefik.http.routers.nestjs.tls=true"
+      - "traefik.http.services.nestjs.loadbalancer.server.port=3000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**app.module.ts:**
+```typescript
+import { Module } from '@nestjs/common';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot(),
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get('SMTP_HOST', 'mailpit'),
+          port: configService.get('SMTP_PORT', 1025),
+          secure: false,
+        },
+        defaults: {
+          from: configService.get('MAIL_FROM', 'noreply@example.com'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+#### FastAPI (Python) Configuration
+
+FastAPI applications using fastapi-mail or aiosmtplib.
+
+**compose.yml:**
+```yaml
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - MAIL_FROM=noreply@example.com
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi.rule=Host(`fastapi.docker.localhost`)"
+      - "traefik.http.routers.fastapi.tls=true"
+      - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Using fastapi-mail:**
+```python
+import os
+from fastapi import FastAPI
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+
+app = FastAPI()
+
+# Mailpit configuration
+mail_config = ConnectionConfig(
+    MAIL_USERNAME="",
+    MAIL_PASSWORD="",
+    MAIL_FROM=os.getenv("MAIL_FROM", "noreply@example.com"),
+    MAIL_PORT=int(os.getenv("SMTP_PORT", 1025)),
+    MAIL_SERVER=os.getenv("SMTP_HOST", "mailpit"),
+    MAIL_STARTTLS=False,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=False
+)
+
+fm = FastMail(mail_config)
+
+@app.post("/send-email/")
+async def send_email(email: str, subject: str, body: str):
+    message = MessageSchema(
+        subject=subject,
+        recipients=[email],
+        body=body,
+        subtype="html"
+    )
+    await fm.send_message(message)
+    return {"message": "Email sent successfully"}
+```
+
+**Using aiosmtplib (lightweight alternative):**
+```python
+import os
+import aiosmtplib
+from email.message import EmailMessage
+
+async def send_email(to: str, subject: str, body: str):
+    message = EmailMessage()
+    message["From"] = os.getenv("MAIL_FROM", "noreply@example.com")
+    message["To"] = to
+    message["Subject"] = subject
+    message.set_content(body, subtype="html")
+
+    await aiosmtplib.send(
+        message,
+        hostname=os.getenv("SMTP_HOST", "mailpit"),
+        port=int(os.getenv("SMTP_PORT", 1025)),
+        use_tls=False
+    )
+```
+
+---
+
+#### Flask Configuration
+
+Flask applications using Flask-Mail.
+
+**compose.yml:**
+```yaml
+services:
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flask-app
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - MAIL_SERVER=mailpit
+      - MAIL_PORT=1025
+      - MAIL_USE_TLS=False
+      - MAIL_USE_SSL=False
+      - MAIL_DEFAULT_SENDER=noreply@example.com
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flask.rule=Host(`flask.docker.localhost`)"
+      - "traefik.http.routers.flask.tls=true"
+      - "traefik.http.services.flask.loadbalancer.server.port=5000"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**app.py:**
+```python
+import os
+from flask import Flask
+from flask_mail import Mail, Message
+
+app = Flask(__name__)
+
+# Mailpit configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'mailpit')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 1025))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'False').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@example.com')
+
+mail = Mail(app)
+
+@app.route('/send-test-email')
+def send_test_email():
+    msg = Message(
+        subject='Test Email from Flask',
+        recipients=['test@example.com'],
+        body='This is a test email sent from Flask via Mailpit.'
+    )
+    mail.send(msg)
+    return 'Email sent! Check Mailpit at https://mail.docker.localhost'
+```
+
+---
+
+#### Go Application Configuration
+
+Go applications using the standard net/smtp package.
+
+**compose.yml:**
+```yaml
+services:
+  go-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-app
+    restart: unless-stopped
+    environment:
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - MAIL_FROM=noreply@example.com
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.go-app.rule=Host(`go-app.docker.localhost`)"
+      - "traefik.http.routers.go-app.tls=true"
+      - "traefik.http.services.go-app.loadbalancer.server.port=8080"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**mail/mail.go:**
+```go
+package mail
+
+import (
+    "fmt"
+    "net/smtp"
+    "os"
+)
+
+func SendEmail(to, subject, body string) error {
+    host := os.Getenv("SMTP_HOST")
+    if host == "" {
+        host = "mailpit"
+    }
+    port := os.Getenv("SMTP_PORT")
+    if port == "" {
+        port = "1025"
+    }
+    from := os.Getenv("MAIL_FROM")
+    if from == "" {
+        from = "noreply@example.com"
+    }
+
+    addr := fmt.Sprintf("%s:%s", host, port)
+
+    msg := []byte(fmt.Sprintf(
+        "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+        from, to, subject, body,
+    ))
+
+    // Mailpit doesn't require authentication
+    return smtp.SendMail(addr, nil, from, []string{to}, msg)
+}
+```
+
+**Using with gomail (for HTML emails):**
+```go
+package mail
+
+import (
+    "os"
+    "strconv"
+
+    "gopkg.in/gomail.v2"
+)
+
+func SendHTMLEmail(to, subject, htmlBody string) error {
+    host := os.Getenv("SMTP_HOST")
+    if host == "" {
+        host = "mailpit"
+    }
+    portStr := os.Getenv("SMTP_PORT")
+    if portStr == "" {
+        portStr = "1025"
+    }
+    port, _ := strconv.Atoi(portStr)
+    from := os.Getenv("MAIL_FROM")
+    if from == "" {
+        from = "noreply@example.com"
+    }
+
+    m := gomail.NewMessage()
+    m.SetHeader("From", from)
+    m.SetHeader("To", to)
+    m.SetHeader("Subject", subject)
+    m.SetBody("text/html", htmlBody)
+
+    d := gomail.NewDialer(host, port, "", "")
+
+    return d.DialAndSend(m)
+}
+```
+
+---
+
+#### WordPress Configuration
+
+WordPress uses PHPMailer and can be configured to use Mailpit.
+
+**compose.yml:**
+```yaml
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress-app
+    restart: unless-stopped
+    environment:
+      - WORDPRESS_DB_HOST=mysql
+      - WORDPRESS_DB_USER=root
+      - WORDPRESS_DB_PASSWORD=root
+      - WORDPRESS_DB_NAME=wordpress
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+      - ./smtp-config.php:/var/www/html/wp-content/mu-plugins/smtp-config.php
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wordpress.rule=Host(`wordpress.docker.localhost`)"
+      - "traefik.http.routers.wordpress.tls=true"
+      - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**smtp-config.php (must-use plugin):**
+```php
+<?php
+/**
+ * Plugin Name: SMTP Configuration for Mailpit
+ * Description: Configures WordPress to send emails via Mailpit
+ */
+
+add_action('phpmailer_init', function($phpmailer) {
+    $phpmailer->isSMTP();
+    $phpmailer->Host = 'mailpit';
+    $phpmailer->Port = 1025;
+    $phpmailer->SMTPAuth = false;
+    $phpmailer->SMTPSecure = false;
+    $phpmailer->SMTPAutoTLS = false;
+});
+```
+
+---
+
+#### Mailpit API for Automated Testing
+
+Mailpit provides a REST API for automated email testing in CI/CD pipelines.
+
+**API Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/messages` | GET | List all messages |
+| `/api/v1/messages/{id}` | GET | Get message details |
+| `/api/v1/messages/{id}/raw` | GET | Get raw message content |
+| `/api/v1/messages` | DELETE | Delete all messages |
+
+**Example: Testing with curl:**
+```bash
+# List all captured emails
+curl -s https://mail.docker.localhost/api/v1/messages | jq
+
+# Get the latest email
+curl -s https://mail.docker.localhost/api/v1/messages | jq '.messages[0]'
+
+# Clear all emails (useful before test runs)
+curl -X DELETE https://mail.docker.localhost/api/v1/messages
+```
+
+**Example: Automated testing in JavaScript (Jest):**
+```javascript
+const axios = require('axios');
+
+describe('Email functionality', () => {
+  const mailpitUrl = 'https://mail.docker.localhost';
+
+  beforeEach(async () => {
+    // Clear all emails before each test
+    await axios.delete(`${mailpitUrl}/api/v1/messages`);
+  });
+
+  it('should send welcome email on user registration', async () => {
+    // Trigger your application to send an email
+    await axios.post('https://myapp.docker.localhost/api/register', {
+      email: 'newuser@example.com',
+      password: 'password123'
+    });
+
+    // Wait a moment for email to be sent
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Check Mailpit for the email
+    const response = await axios.get(`${mailpitUrl}/api/v1/messages`);
+    const messages = response.data.messages;
+
+    expect(messages.length).toBe(1);
+    expect(messages[0].To[0].Address).toBe('newuser@example.com');
+    expect(messages[0].Subject).toContain('Welcome');
+  });
+});
+```
+
+**Example: Automated testing in Python (pytest):**
+```python
+import pytest
+import requests
+import time
+
+MAILPIT_URL = 'https://mail.docker.localhost'
+APP_URL = 'https://myapp.docker.localhost'
+
+@pytest.fixture(autouse=True)
+def clear_emails():
+    """Clear all emails before each test."""
+    requests.delete(f'{MAILPIT_URL}/api/v1/messages', verify=False)
+    yield
+
+def test_password_reset_email():
+    """Test that password reset sends an email."""
+    # Request password reset
+    response = requests.post(
+        f'{APP_URL}/api/password-reset',
+        json={'email': 'user@example.com'},
+        verify=False
+    )
+    assert response.status_code == 200
+
+    # Wait for email to be sent
+    time.sleep(1)
+
+    # Check Mailpit for the email
+    messages = requests.get(
+        f'{MAILPIT_URL}/api/v1/messages',
+        verify=False
+    ).json()
+
+    assert len(messages['messages']) == 1
+    email = messages['messages'][0]
+    assert email['To'][0]['Address'] == 'user@example.com'
+    assert 'Password Reset' in email['Subject']
+```
+
+---
+
+#### Quick Reference: Framework Configuration Summary
+
+| Framework | Environment Variables | Configuration File |
+|-----------|----------------------|-------------------|
+| **Laravel** | `MAIL_HOST=mailpit`, `MAIL_PORT=1025` | `.env` |
+| **Symfony** | `MAILER_DSN=smtp://mailpit:1025` | `.env` |
+| **Django** | `EMAIL_HOST=mailpit`, `EMAIL_PORT=1025` | `settings.py` |
+| **Rails** | `SMTP_ADDRESS=mailpit`, `SMTP_PORT=1025` | `config/environments/development.rb` |
+| **Node.js** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | Application config |
+| **FastAPI** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | `ConnectionConfig` |
+| **Flask** | `MAIL_SERVER=mailpit`, `MAIL_PORT=1025` | `app.config` |
+| **Go** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | `os.Getenv()` |
+| **WordPress** | N/A (plugin) | `smtp-config.php` |
+
+**Important notes:**
+
+1. **Network requirement**: Your services **must** be on the `traefik-proxy` network to access Mailpit.
+
+2. **Connection strings**: Use container name as hostname:
+   - SMTP: `mailpit:1025`
+   - Web UI: `https://mail.docker.localhost`
+   - API: `https://mail.docker.localhost/api/v1/`
+
+3. **No authentication**: Mailpit doesn't require SMTP authentication for local development.
+
+4. **No encryption**: Disable TLS/SSL when connecting to Mailpit (port 1025).
+
+5. **Viewing emails**: All captured emails are visible at [https://mail.docker.localhost](https://mail.docker.localhost).
+
+6. **Data persistence**: By default, Mailpit stores emails in memory. They are cleared when the container restarts. For persistence, see Mailpit's documentation on database storage.
+
+7. **Multiple projects**: All projects share the same Mailpit instance. Emails from all projects appear in the same inbox.
+
+8. **Production safety**: Mailpit only runs in your development environment. In production, configure your real email service (SendGrid, Mailgun, SES, etc.).
 
 ---
 
