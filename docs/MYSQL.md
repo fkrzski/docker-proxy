@@ -125,7 +125,7 @@ networks:
 
 **Connection String:**
 ```
-mysql://root:password@mysql:3306/database_name
+mysql://root:<password>@mysql:3306/database_name
 ```
 
 ### From Host Machine
@@ -385,6 +385,7 @@ const pool = mysql.createPool({
 Use `mysql-connector-python` 8.0+:
 
 ```python
+import os
 import mysql.connector
 
 config = {
@@ -404,6 +405,7 @@ connection.close()
 
 **Alternative with pymysql:**
 ```python
+import os
 import pymysql
 
 connection = pymysql.connect(
@@ -450,7 +452,7 @@ datasource db {
 
 Environment variable:
 ```bash
-DATABASE_URL="mysql://root:password@mysql:3306/myapp"
+DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/myapp"
 ```
 
 Prisma supports `caching_sha2_password` natively.
@@ -583,7 +585,7 @@ docker logs mysql
 
 # Common fix: Reset data volume if corrupted
 docker compose down
-docker volume rm docker-proxy_mysql_data
+docker volume rm <project_name>_mysql_data
 docker compose up -d
 
 # Check disk space
@@ -645,7 +647,7 @@ FLUSH PRIVILEGES;
 # Create backup script
 #!/bin/bash
 docker exec mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} \
-  --all-databases > /backups/mysql_$(date +%Y%m%d).sql
+  --all-databases > mysql_backup_$(date +%Y%m%d).sql
 ```
 
 ### 5. Monitor Disk Usage
@@ -682,7 +684,9 @@ mysql:
   image: mysql:8.0
   networks:
     - traefik-proxy
+```
 
+```yaml
 # Avoid: Direct port exposure
 mysql:
   ports:
