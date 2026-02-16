@@ -124,7 +124,7 @@ COMPOSE_PROFILES=
 
 📖 **For comprehensive PostgreSQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
 
-- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `postres` (From `.env.example`).
+- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `postgres` (From `.env.example`).
 
 ## Usage in Projects
 

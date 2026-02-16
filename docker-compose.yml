@@ -142,6 +142,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.dev}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
       interval: 30s
@@ -182,6 +184,7 @@ services:
 volumes:
   mysql_data:
   postgres_data:
+  pgadmin_data:
 
 networks:
   traefik-proxy:
