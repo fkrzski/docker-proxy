@@ -131,6 +131,31 @@ services:
       - "traefik.http.routers.pma.rule=Host(`pma.docker.localhost`)"
       - "traefik.http.routers.pma.tls=true"
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    profiles:
+      - pgadmin
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@localhost}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - traefik-proxy
+    logging: *default-logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.docker.localhost`)"
+      - "traefik.http.routers.pgadmin.tls=true"
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: mailpit
