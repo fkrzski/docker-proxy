@@ -124,7 +124,7 @@ COMPOSE_PROFILES=
 
 📖 **For comprehensive PostgreSQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
 
-- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `postgres` (From `.env.example`).
+- **Superuser Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. The user is controlled by `POSTGRES_USER` (default `postgres`). The default password is `postgres` (from `.env.example`).
 
 ## Usage in Projects
 

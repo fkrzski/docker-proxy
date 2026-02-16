@@ -518,7 +518,7 @@ grep POSTGRES_PASSWORD .env
 
 # Reset password (requires volume reset for first-time setup issues)
 docker compose down
-docker volume rm <project_name>_postgres_data
+docker volume rm <project_directory>_postgres_data
 # Update .env with correct password
 docker compose up -d postgres
 ```
@@ -562,7 +562,7 @@ docker logs postgres
 
 # Reset data volume if corrupted
 docker compose down
-docker volume rm <project_name>_postgres_data
+docker volume rm <project_directory>_postgres_data
 docker compose up -d postgres
 
 # Check disk space
@@ -578,7 +578,7 @@ df -h
 ```bash
 # Reset volume and recreate with correct locale
 docker compose down
-docker volume rm <project_name>_postgres_data
+docker volume rm <project_directory>_postgres_data
 docker compose up -d postgres
 ```
 
