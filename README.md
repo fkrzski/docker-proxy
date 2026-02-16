@@ -122,9 +122,9 @@ COMPOSE_PROFILES=
 
 #### PostgreSQL
 
-📖 **For comprehensive MySQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
+📖 **For comprehensive PostgreSQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
 
-- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `admin`.
+- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `postres` (From `.env.example`).
 
 ## Usage in Projects
 

@@ -258,7 +258,7 @@ connection_pool.putconn(conn)
 import psycopg
 
 with psycopg.connect(
-    "postgresql://postgres:password@postgres:5432/myapp"
+    "postgresql://postgres:{os.environ.get('POSTGRES_PASSWORD')}@postgres:5432/myapp"
 ) as conn:
     with conn.cursor() as cur:
         cur.execute("SELECT version()")

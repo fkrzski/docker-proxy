@@ -132,7 +132,7 @@ services:
       - "traefik.http.routers.pma.tls=true"
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9
     container_name: pgadmin
     restart: unless-stopped
     profiles:
