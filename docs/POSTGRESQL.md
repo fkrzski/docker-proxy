@@ -360,7 +360,7 @@ pgAdmin is a feature-rich web-based administration tool for PostgreSQL.
 ```bash
 COMPOSE_PROFILES=postgres,pgadmin
 PGADMIN_DEFAULT_EMAIL=admin@local.dev
-PGADMIN_DEFAULT_PASSWORD=admin
+PGADMIN_DEFAULT_PASSWORD=postgres
 ```
 
 **Start Services:**
