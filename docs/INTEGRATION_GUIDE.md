@@ -4117,13 +4117,13 @@ Mailpit provides a REST API for automated email testing in CI/CD pipelines.
 **Example: Testing with curl:**
 ```bash
 # List all captured emails
-curl -s https://mail.docker.localhost/api/v1/messages | jq
+curl -sk https://mail.docker.localhost/api/v1/messages | jq
 
 # Get the latest email
-curl -s https://mail.docker.localhost/api/v1/messages | jq '.messages[0]'
+curl -sk https://mail.docker.localhost/api/v1/messages | jq '.messages[0]'
 
 # Clear all emails (useful before test runs)
-curl -X DELETE https://mail.docker.localhost/api/v1/messages
+curl -sk -X DELETE https://mail.docker.localhost/api/v1/messages
 ```
 
 **Example: Automated testing in JavaScript (Jest):**
@@ -4131,12 +4131,28 @@ curl -X DELETE https://mail.docker.localhost/api/v1/messages
 const axios = require('axios');
 
 describe('Email functionality', () => {
-  const mailpitUrl = 'https://mail.docker.localhost';
+   const https = require('https');
+   const axios = require('axios');
 
-  beforeEach(async () => {
-    // Clear all emails before each test
-    await axios.delete(`${mailpitUrl}/api/v1/messages`);
-  });
+   const mailpitUrl = 'https://mail.docker.localhost';
+
+   const agent = new https.Agent({
+      rejectUnauthorized: false
+   });
+
+   const mailpitApi = axios.create({
+      baseURL: mailpitUrl,
+      httpsAgent: agent
+   });
+
+   describe('Email functionality', () => {
+      beforeEach(async () => {
+         // Clear all emails before each test
+         await mailpitApi.delete('/api/v1/messages');
+      });
+
+      // ... rest of the test
+   });
 
   it('should send welcome email on user registration', async () => {
     // Trigger your application to send an email
@@ -4171,7 +4187,7 @@ APP_URL = 'https://myapp.docker.localhost'
 @pytest.fixture(autouse=True)
 def clear_emails():
     """Clear all emails before each test."""
-    requests.delete(f'{MAILPIT_URL}/api/v1/messages', verify=False)
+    requests.delete(f'{MAILPIT_URL}/api/v1/messages', verify=True)
     yield
 
 def test_password_reset_email():
