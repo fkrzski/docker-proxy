@@ -2,7 +2,7 @@
 
 A fully configurable, local reverse proxy for Docker development. This project eliminates port conflicts (e.g., "Port 8080 is already in use") and provides trusted SSL certificates for local domains.
 
-It runs a single Traefik container handling routing for all local projects via custom domains (e.g., `https://my-app.docker.localhost`). Additionally, it includes optional, pre-configured services like Redis, MySQL, and phpMyAdmin.
+It runs a single Traefik container handling routing for all local projects via custom domains (e.g., `https://my-app.docker.localhost`). Additionally, it includes optional, pre-configured services like Redis, MySQL, phpMyAdmin, and Mailpit.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ This project has been tested and verified on the following platform combinations
 
 **Key Features:**
 - 🔄 **Automatic Architecture Detection**: The `setup.sh` script detects your system architecture and pulls the correct multi-arch container images
-- 🐳 **Multi-Arch Images**: All containers (Traefik, Redis, MySQL, phpMyAdmin) support both AMD64 and ARM64
+- 🐳 **Multi-Arch Images**: All containers (Traefik, Redis, MySQL, phpMyAdmin, Mailpit) support both AMD64 and ARM64
 - 🍎 **Apple Silicon Optimized**: Native performance on M1, M2, and M3 Macs without Rosetta emulation
 - 🌐 **Cross-Platform**: Single codebase works across all supported platforms
 
@@ -95,7 +95,7 @@ You can control which services start by editing the `COMPOSE_PROFILES` variable 
 
 ```dotenv
 # Enable all services (default)
-COMPOSE_PROFILES=redis,mysql,pma
+COMPOSE_PROFILES=redis,mysql,pma,mailpit
 
 # Enable only Redis
 COMPOSE_PROFILES=redis
@@ -108,6 +108,7 @@ COMPOSE_PROFILES=
 - `redis`: Starts a Redis container.
 - `mysql`: Starts a MySQL 8.0 container.
 - `pma`: Starts phpMyAdmin (available at [https://pma.docker.localhost](https://pma.docker.localhost)).
+- `mailpit`: Starts Mailpit email testing service (available at [https://mailpit.docker.localhost](https://mailpit.docker.localhost)).
 
 ### Database Configuration
 
