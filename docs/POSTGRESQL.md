@@ -359,7 +359,7 @@ pgAdmin is a feature-rich web-based administration tool for PostgreSQL.
 **Edit `.env`:**
 ```bash
 COMPOSE_PROFILES=postgres,pgadmin
-PGADMIN_DEFAULT_EMAIL=admin@localhost
+PGADMIN_DEFAULT_EMAIL=admin@local.dev
 PGADMIN_DEFAULT_PASSWORD=admin
 ```
 
@@ -376,7 +376,7 @@ https://pgadmin.docker.localhost
 ```
 
 **Login Credentials:**
-- **Email**: Value of `PGADMIN_DEFAULT_EMAIL` (default: `admin@localhost`)
+- **Email**: Value of `PGADMIN_DEFAULT_EMAIL` (default: `admin@local.dev`)
 - **Password**: Value of `PGADMIN_DEFAULT_PASSWORD`
 
 ### Adding Server Connection
