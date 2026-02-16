@@ -324,7 +324,8 @@ if [ ! -f certs/local-cert.pem ] || [ ! -f certs/local-key.pem ];
       "localhost" "*.docker.localhost" "127.0.0.1" "::1"
     
     # Set permissions
-    chmod 644 certs/local-cert.pem certs/local-key.pem
+    chmod 644 certs/local-cert.pem
+    chmod 600 certs/local-key.pem
     log_success "Certificates generated in ./certs"
 else
     log_info "Certificates already exist. Skipping generation."
