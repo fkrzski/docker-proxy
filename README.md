@@ -124,7 +124,7 @@ COMPOSE_PROFILES=
 
 📖 **For comprehensive PostgreSQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
 
-- **Superuser Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. The user is controlled by `POSTGRES_USER` (default `postgres`). The default password is `postgres` (from `.env.example`).
+- **Superuser:** The user is `postgres` (configurable via `POSTGRES_USER`). The password is set by `POSTGRES_PASSWORD` in `.env` (the example file defaults to `postgres`).
 
 ## Usage in Projects
 
