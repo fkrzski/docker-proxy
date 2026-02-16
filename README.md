@@ -114,9 +114,17 @@ COMPOSE_PROFILES=
 
 ### Database Configuration
 
+#### MySQL
+
 📖 **For comprehensive MySQL documentation including authentication, connection examples, and migration guides, see the [MySQL Documentation](docs/MYSQL.md).**
 
 - **Root Password:** Controlled by `MYSQL_ROOT_PASSWORD` in `.env`. Default is `root`.
+
+#### PostgreSQL
+
+📖 **For comprehensive MySQL documentation see the [PostgreSQL Documentation](docs/POSTGRESQL.md).**
+
+- **Root Password:** Controlled by `POSTGRES_PASSWORD` in `.env`. Default is `admin`.
 
 ## Usage in Projects
 
