@@ -3325,7 +3325,7 @@ Mailpit is a modern email testing tool (successor to MailHog) that:
 
 **Benefits:**
 - Test email functionality without sending real emails
-- View emails in a web interface at `https://mail.docker.localhost`
+- View emails in a web interface at `https://mailpit.docker.localhost`
 - Single Mailpit instance for all projects
 - Inspect HTML rendering, attachments, and headers
 - API access for automated testing
@@ -3337,9 +3337,9 @@ Mailpit is a modern email testing tool (successor to MailHog) that:
 
    Edit the proxy's `.env` file:
    ```bash
-   COMPOSE_PROFILES=mail
+   COMPOSE_PROFILES=mailpit
    # Or combine with other services:
-   COMPOSE_PROFILES=redis,mysql,pma,mail
+   COMPOSE_PROFILES=redis,mysql,pma,mailpit
    ```
 
    Restart the proxy:
@@ -3357,7 +3357,7 @@ Mailpit is a modern email testing tool (successor to MailHog) that:
 
 3. **Access the Mailpit web interface:**
 
-   Open [https://mail.docker.localhost](https://mail.docker.localhost) in your browser.
+   Open [https://mailpit.docker.localhost](https://mailpit.docker.localhost) in your browser.
 
 **SMTP Configuration:**
 
@@ -3434,7 +3434,7 @@ php artisan tinker
 ... });
 ```
 
-Check [https://mail.docker.localhost](https://mail.docker.localhost) to see the captured email.
+Check [https://mailpit.docker.localhost](https://mailpit.docker.localhost) to see the captured email.
 
 ---
 
@@ -3938,7 +3938,7 @@ def send_test_email():
         body='This is a test email sent from Flask via Mailpit.'
     )
     mail.send(msg)
-    return 'Email sent! Check Mailpit at https://mail.docker.localhost'
+    return 'Email sent! Check Mailpit at https://mailpit.docker.localhost'
 ```
 
 ---
@@ -4117,13 +4117,13 @@ Mailpit provides a REST API for automated email testing in CI/CD pipelines.
 **Example: Testing with curl:**
 ```bash
 # List all captured emails
-curl -sk https://mail.docker.localhost/api/v1/messages | jq
+curl -sk https://mailpit.docker.localhost/api/v1/messages | jq
 
 # Get the latest email
-curl -sk https://mail.docker.localhost/api/v1/messages | jq '.messages[0]'
+curl -sk https://mailpit.docker.localhost/api/v1/messages | jq '.messages[0]'
 
 # Clear all emails (useful before test runs)
-curl -sk -X DELETE https://mail.docker.localhost/api/v1/messages
+curl -sk -X DELETE https://mailpit.docker.localhost/api/v1/messages
 ```
 
 **Example: Automated testing in JavaScript (Jest):**
@@ -4134,7 +4134,7 @@ describe('Email functionality', () => {
    const https = require('https');
    const axios = require('axios');
 
-   const mailpitUrl = 'https://mail.docker.localhost';
+   const mailpitUrl = 'https://mailpit.docker.localhost';
 
    const agent = new https.Agent({
       rejectUnauthorized: false
@@ -4181,7 +4181,7 @@ import pytest
 import requests
 import time
 
-MAILPIT_URL = 'https://mail.docker.localhost'
+MAILPIT_URL = 'https://mailpit.docker.localhost'
 APP_URL = 'https://myapp.docker.localhost'
 
 @pytest.fixture(autouse=True)
@@ -4237,14 +4237,14 @@ def test_password_reset_email():
 
 2. **Connection strings**: Use container name as hostname:
    - SMTP: `mailpit:1025`
-   - Web UI: `https://mail.docker.localhost`
-   - API: `https://mail.docker.localhost/api/v1/`
+   - Web UI: `https://mailpit.docker.localhost`
+   - API: `https://mailpit.docker.localhost/api/v1/`
 
 3. **No authentication**: Mailpit doesn't require SMTP authentication for local development.
 
 4. **No encryption**: Disable TLS/SSL when connecting to Mailpit (port 1025).
 
-5. **Viewing emails**: All captured emails are visible at [https://mail.docker.localhost](https://mail.docker.localhost).
+5. **Viewing emails**: All captured emails are visible at [https://mailpit.docker.localhost](https://mailpit.docker.localhost).
 
 6. **Data persistence**: By default, Mailpit stores emails in memory. They are cleared when the container restarts. For persistence, see Mailpit's documentation on database storage.
 

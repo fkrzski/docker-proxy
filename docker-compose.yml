@@ -116,7 +116,7 @@ services:
     security_opt:
       - no-new-privileges:true
     profiles:
-      - mail
+      - mailpit
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
       interval: 30s
@@ -128,7 +128,7 @@ services:
     logging: *default-logging
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mailpit.rule=Host(`mail.docker.localhost`)"
+      - "traefik.http.routers.mailpit.rule=Host(`mailpit.docker.localhost`)"
       - "traefik.http.routers.mailpit.tls=true"
       - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
 

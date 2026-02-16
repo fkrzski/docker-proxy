@@ -95,7 +95,7 @@ You can control which services start by editing the `COMPOSE_PROFILES` variable 
 
 ```dotenv
 # Enable all services (default)
-COMPOSE_PROFILES=redis,mysql,pma,mail
+COMPOSE_PROFILES=redis,mysql,pma,mailpit
 
 # Enable only Redis
 COMPOSE_PROFILES=redis
@@ -108,7 +108,7 @@ COMPOSE_PROFILES=
 - `redis`: Starts a Redis container.
 - `mysql`: Starts a MySQL 8.0 container.
 - `pma`: Starts phpMyAdmin (available at [https://pma.docker.localhost](https://pma.docker.localhost)).
-- `mail`: Starts Mailpit email testing service (available at [https://mail.docker.localhost](https://mail.docker.localhost)).
+- `mailpit`: Starts Mailpit email testing service (available at [https://mailpit.docker.localhost](https://mailpit.docker.localhost)).
 
 ### Database Configuration
 
