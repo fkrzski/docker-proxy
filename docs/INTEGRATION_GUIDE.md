@@ -4997,7 +4997,114 @@ Check Traefik dashboard to see all routers:
 
 ### Middleware Configuration
 
-**TODO:** Document common Traefik middleware (auth, rate limiting, etc.)
+Traefik middleware allows you to modify requests and responses as they pass through the proxy. This proxy includes pre-configured security headers middleware to protect against common web vulnerabilities.
+
+#### Security Headers Middleware
+
+The proxy includes a **security headers middleware** (`security-headers`) that automatically applies essential security headers to HTTP responses. These headers protect against common attacks like clickjacking, MIME-type sniffing, and protocol downgrade attacks.
+
+**Included Headers:**
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `X-Frame-Options` | `DENY` | Prevents clickjacking by blocking iframe embedding |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing attacks |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer information sent with requests |
+| `X-XSS-Protection` | `1; mode=block` | Enables browser XSS protection (legacy support) |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Forces HTTPS for 1 year on all subdomains |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-inline'; ...` | Restricts resource loading to prevent XSS |
+
+**Applying to Your Services:**
+
+To apply security headers to your custom services, add the middleware to your router labels:
+
+```yaml
+services:
+  app:
+    image: your-app:latest
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.docker.localhost`)"
+      - "traefik.http.routers.app.tls=true"
+      # Apply security headers middleware
+      - "traefik.http.routers.app.middlewares=security-headers@file"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Key Points:**
+
+- The `@file` suffix tells Traefik to use middleware defined in the dynamic configuration file (`config/dynamic.yml`)
+- Security headers are applied automatically to the Traefik dashboard
+- You can chain multiple middlewares by separating them with commas: `middlewares=security-headers@file,other-middleware`
+
+**Verification:**
+
+After starting your service, verify the headers are present:
+
+```bash
+curl -I https://app.docker.localhost 2>/dev/null | grep -E '(X-Frame-Options|X-Content-Type-Options|Strict-Transport-Security)'
+```
+
+**Expected output:**
+```
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+**Customizing Security Headers:**
+
+If you need different security header values for a specific service, you can define a custom middleware in your project's compose file:
+
+```yaml
+services:
+  app:
+    image: your-app:latest
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.docker.localhost`)"
+      - "traefik.http.routers.app.tls=true"
+      # Define custom middleware inline
+      - "traefik.http.middlewares.custom-headers.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN"
+      - "traefik.http.middlewares.custom-headers.headers.customResponseHeaders.X-Content-Type-Options=nosniff"
+      # Apply custom middleware
+      - "traefik.http.routers.app.middlewares=custom-headers"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Common Use Cases:**
+
+1. **Allow iframe embedding (for apps with widgets):**
+   ```yaml
+   - "traefik.http.middlewares.app-headers.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN"
+   - "traefik.http.routers.app.middlewares=app-headers"
+   ```
+
+2. **Custom Content Security Policy (for specific frontend frameworks):**
+   ```yaml
+   - "traefik.http.middlewares.app-csp.headers.customResponseHeaders.Content-Security-Policy=default-src 'self' https://cdn.example.com"
+   - "traefik.http.routers.app.middlewares=app-csp"
+   ```
+
+3. **Combine security headers with other middleware:**
+   ```yaml
+   - "traefik.http.routers.app.middlewares=security-headers@file,compress,ratelimit"
+   ```
+
+**For More Information:**
+
+- Traefik Headers Middleware: https://doc.traefik.io/traefik/middlewares/http/headers/
+- OWASP Secure Headers Project: https://owasp.org/www-project-secure-headers/
 
 ## Troubleshooting
 
