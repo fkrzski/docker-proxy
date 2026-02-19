@@ -46,6 +46,7 @@ services:
       - "traefik.http.routers.dashboard.rule=Host(`traefik.docker.localhost`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.middlewares=security-headers@file"
 
   redis:
     image: redis:alpine
