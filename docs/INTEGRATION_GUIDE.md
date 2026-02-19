@@ -5188,7 +5188,8 @@ This section covers common integration issues and their solutions. For each prob
    mkcert -key-file certs/local-key.pem \
      -cert-file certs/local-cert.pem \
      "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-   chmod 644 certs/local-cert.pem certs/local-key.pem
+   chmod 644 certs/local-cert.pem
+   chmod 600 certs/local-key.pem
    docker compose restart traefik
    ```
 
@@ -5540,7 +5541,8 @@ Regenerate certificates to include your custom pattern:
 mkcert -key-file certs/local-key.pem \
   -cert-file certs/local-cert.pem \
   "localhost" "*.localhost" "*.docker.localhost" "127.0.0.1" "::1"
-chmod 644 certs/local-cert.pem certs/local-key.pem
+chmod 644 certs/local-cert.pem
+chmod 600 certs/local-key.pem
 docker compose restart traefik
 ```
 

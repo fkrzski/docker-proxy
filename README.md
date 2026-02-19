@@ -74,8 +74,9 @@ If you prefer to configure the environment manually or are using a non-Debian di
     mkcert -key-file certs/local-key.pem \
       -cert-file certs/local-cert.pem \
       "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-    
-    chmod 644 certs/local-cert.pem certs/local-key.pem
+
+    chmod 644 certs/local-cert.pem
+    chmod 600 certs/local-key.pem
     ```
 
 4.  **Start Proxy**
