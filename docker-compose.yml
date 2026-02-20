@@ -107,7 +107,7 @@ services:
       start_period: 40s
 
   pma:
-    image: phpmyadmin/phpmyadmin
+    image: phpmyadmin/phpmyadmin:5.2
     container_name: pma
     restart: unless-stopped
     profiles:
