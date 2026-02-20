@@ -5243,7 +5243,7 @@ protocol downgrade attacks.
 | `Referrer-Policy`           | `strict-origin-when-cross-origin`                            | Controls referrer information sent with requests              |
 | `X-XSS-Protection`          | `0`                                                          | Disables browser XSS protection (legacy; CSP is used instead) |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                        | Forces HTTPS for 1 year on all subdomains                     |
-| `Content-Security-Policy`   | `default-src 'self'; script-src 'self'; style-src 'self'; ...` | Restricts resource loading to prevent XSS                     |
+| `Content-Security-Policy`   | `default-src 'self'; ...; object-src 'none'; base-uri 'self'` | Restricts resource loading to prevent XSS and injection attacks |
 
 **Applying to Your Services:**
 
@@ -5273,6 +5273,7 @@ networks:
 - Security headers are applied automatically to the Traefik dashboard
 - You can chain multiple middlewares by separating them with commas:
   `middlewares=security-headers@file,other-middleware`
+- The CSP includes `object-src 'none'` (prevents plugin embedding like Flash) and `base-uri 'self'` (prevents base URL hijacking attacks)
 
 **Verification:**
 
