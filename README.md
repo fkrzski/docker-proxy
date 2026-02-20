@@ -115,6 +115,12 @@ COMPOSE_PROFILES=
 
 ### Database Configuration
 
+#### Redis
+
+📖 **For comprehensive Redis documentation including authentication, connection examples, and persistence configuration, see the [Redis Documentation](docs/REDIS.md).**
+
+- **Password:** Controlled by `REDIS_PASSWORD` in `.env`. Default is empty (no authentication).
+
 #### MySQL
 
 📖 **For comprehensive MySQL documentation including authentication, connection examples, and migration guides, see the [MySQL Documentation](docs/MYSQL.md).**
