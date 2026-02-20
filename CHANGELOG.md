@@ -1,3 +1,12 @@
+## [1.2.0] - 2026-02-20
+
+### 🔒 Security
+- Added Redis password authentication via `REDIS_PASSWORD` environment variable
+- Redis connections now require password by default for improved security
+
+### 📚 Documentation
+- Updated README with Redis password configuration instructions
+
 ## [1.1.0] - 2026-02-14
 
 ### 🚀 Added
