@@ -5243,7 +5243,7 @@ protocol downgrade attacks.
 | `Referrer-Policy`           | `strict-origin-when-cross-origin`                            | Controls referrer information sent with requests              |
 | `X-XSS-Protection`          | `0`                                                          | Disables browser XSS protection (legacy; CSP is used instead) |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                        | Forces HTTPS for 1 year on all subdomains                     |
-| `Content-Security-Policy`   | `default-src 'self'; script-src 'self' 'unsafe-inline'; ...` | Restricts resource loading to prevent XSS                     |
+| `Content-Security-Policy`   | `default-src 'self'; script-src 'self'; style-src 'self'; ...` | Restricts resource loading to prevent XSS                     |
 
 **Applying to Your Services:**
 
