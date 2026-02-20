@@ -251,6 +251,7 @@ services:
       - DB_USERNAME=laravel
       - DB_PASSWORD=secret
       - REDIS_HOST=redis
+      - REDIS_PASSWORD=redis
     healthcheck:
       test: [ "CMD", "php-fpm", "-t" ]
       interval: 30s
@@ -1205,6 +1206,7 @@ services:
       - DATABASE_PASSWORD=root
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis
     networks:
       - traefik-proxy  # Must be on same network as MySQL/Redis
 ```
@@ -1291,7 +1293,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=myproject.settings
       - DATABASE_URL=postgresql://django:secret@postgres:5432/django_db
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:redis@redis:6379/0
     volumes:
       - ./:/app
       - static_volume:/app/staticfiles
@@ -1416,7 +1418,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': env('REDIS_URL', default='redis://redis:6379/0'),
+        'LOCATION': env('REDIS_URL', default='redis://:redis@redis:6379/0'),
     }
 }
 
@@ -1539,6 +1541,7 @@ services:
       - DATABASE_URL=postgresql://fastapi:secret@postgres:5432/fastapi_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis
     volumes:
       - ./:/app
     networks:
@@ -1799,7 +1802,7 @@ services:
     environment:
       - FLASK_ENV=production
       - DATABASE_URL=postgresql://flask:secret@postgres:5432/flask_db
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:redis@redis:6379/0
       - SECRET_KEY=your-secret-key-here
     volumes:
       - ./:/app
@@ -1974,7 +1977,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Redis configuration
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://:redis@redis:6379/0')
 
     # Application settings
     JSON_SORT_KEYS = False
@@ -2104,7 +2107,8 @@ docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE flask_db CHARACTER
     - FastAPI: Use Alembic for migrations
 
 8. **Redis integration:**
-    - Connect to proxy's Redis: `REDIS_URL=redis://redis:6379/0`
+    - Connect to proxy's Redis: `REDIS_URL=redis://:redis@redis:6379/0`
+    - Default password: `redis` (configurable via `REDIS_PASSWORD` in proxy's `.env`)
     - Use for caching, sessions, or Celery task queue
     - Must be on `traefik-proxy` network to access proxy's Redis
 
@@ -2129,7 +2133,7 @@ services:
     command: gunicorn myproject.wsgi:application --bind 0.0.0.0:8000 --workers 4
     environment:
       - DATABASE_URL=mysql://root:root@mysql:3306/django_db
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:redis@redis:6379/0
     networks:
       - traefik-proxy
     labels:
@@ -2156,6 +2160,7 @@ services:
       - DATABASE_URL=mysql://root:root@mysql:3306/fastapi_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis
     networks:
       - traefik-proxy
     labels:
@@ -3016,6 +3021,7 @@ services:
       - DATABASE_URL=mysql://root:root@mysql:3306/myapp_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis
       - CORS_ORIGIN=https://myapp.docker.localhost
     networks:
       - traefik-proxy
@@ -3223,7 +3229,7 @@ services:
 
       # Cache configuration (proxy's Redis)
       - REDIS_HOST=redis
-      - REDIS_PASSWORD=null
+      - REDIS_PASSWORD=redis
       - REDIS_PORT=6379
       - CACHE_DRIVER=redis
       - SESSION_DRIVER=redis
@@ -3344,25 +3350,25 @@ docker exec -i mysql mysql -uroot -proot laravel_app < backup.sql
 **Test Redis connection:**
 
 ```bash
-docker exec -it redis redis-cli ping
+docker exec -it redis redis-cli -a redis ping
 ```
 
 **View all keys:**
 
 ```bash
-docker exec -it redis redis-cli KEYS '*'
+docker exec -it redis redis-cli -a redis KEYS '*'
 ```
 
 **Clear all cache:**
 
 ```bash
-docker exec -it redis redis-cli FLUSHDB
+docker exec -it redis redis-cli -a redis FLUSHDB
 ```
 
 **Monitor Redis commands:**
 
 ```bash
-docker exec -it redis redis-cli MONITOR
+docker exec -it redis redis-cli -a redis MONITOR
 ```
 
 **Important notes:**
@@ -3373,7 +3379,7 @@ docker exec -it redis redis-cli MONITOR
     - MySQL: `mysql:3306`
     - Redis: `redis:6379`
 
-3. **Security**: The default password is `root`. For production, change `MYSQL_ROOT_PASSWORD` in the proxy's `.env`.
+3. **Security**: The default MySQL password is `root` and the default Redis password is `redis`. For production, change `MYSQL_ROOT_PASSWORD` and `REDIS_PASSWORD` in the proxy's `.env`.
 
 4. **Multiple projects**: All projects share the same MySQL/Redis instances. Use unique database names:
     - Project A: `projecta_db`
@@ -3403,6 +3409,7 @@ DB_PASSWORD=root
 
 REDIS_HOST=redis
 REDIS_PORT=6379
+REDIS_PASSWORD=redis
 ```
 
 **Django (settings.py):**
@@ -3422,7 +3429,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://redis:6379/0',
+        'LOCATION': 'redis://:redis@redis:6379/0',
     }
 }
 ```
@@ -3444,7 +3451,8 @@ const db = mysql.createConnection({
 // Redis client
 const redisClient = redis.createClient({
   host: 'redis',
-  port: 6379
+  port: 6379,
+  password: 'redis'
 });
 ```
 
@@ -3456,7 +3464,7 @@ DATABASE_URL = "mysql://root:root@mysql:3306/fastapi_app"
 
 # Redis client
 import redis
-redis_client = redis.Redis(host='redis', port=6379, db=0)
+redis_client = redis.Redis(host='redis', port=6379, db=0, password='redis')
 ```
 
 ---
