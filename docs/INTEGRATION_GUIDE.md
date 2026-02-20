@@ -1,6 +1,7 @@
 # Integration Guide
 
-This guide provides detailed instructions for integrating the Local Docker Proxy with various project types and development environments.
+This guide provides detailed instructions for integrating the Local Docker Proxy with various project types and
+development environments.
 
 ## Table of Contents
 
@@ -8,18 +9,18 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
 - [Prerequisites](#prerequisites)
 - [Basic Integration](#basic-integration)
 - [Framework-Specific Examples](#framework-specific-examples)
-  - [PHP Projects](#php-projects)
-  - [Node.js Applications](#nodejs-applications)
-  - [Python/Django Projects](#pythondjango-projects)
-  - [Static Sites](#static-sites)
-  - [Go Applications](#go-applications)
+    - [PHP Projects](#php-projects)
+    - [Node.js Applications](#nodejs-applications)
+    - [Python/Django Projects](#pythondjango-projects)
+    - [Static Sites](#static-sites)
+    - [Go Applications](#go-applications)
 - [Common Scenarios](#common-scenarios)
-  - [Multi-Service Project (Frontend + Backend)](#multi-service-project-frontend--backend)
-  - [Using Proxy-Provided MySQL and Redis](#using-proxy-provided-mysql-and-redis)
-  - [Using Proxy-Provided Mailpit Email Testing](#using-proxy-provided-mailpit-email-testing)
-  - [Custom Domain Patterns](#custom-domain-patterns)
-  - [Path-Based Routing](#path-based-routing)
-  - [Multiple Domains for One Service](#multiple-domains-for-one-service)
+    - [Multi-Service Project (Frontend + Backend)](#multi-service-project-frontend--backend)
+    - [Using Proxy-Provided MySQL and Redis](#using-proxy-provided-mysql-and-redis)
+    - [Using Proxy-Provided Mailpit Email Testing](#using-proxy-provided-mailpit-email-testing)
+    - [Custom Domain Patterns](#custom-domain-patterns)
+    - [Path-Based Routing](#path-based-routing)
+    - [Multiple Domains for One Service](#multiple-domains-for-one-service)
 - [Advanced Configuration](#advanced-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
@@ -29,7 +30,8 @@ This guide provides detailed instructions for integrating the Local Docker Proxy
 
 **Goal:** Connect your first Docker project to the proxy in under 5 minutes.
 
-In this walkthrough, you'll expose a simple Nginx container through the proxy and access it via `https://quickstart.docker.localhost`.
+In this walkthrough, you'll expose a simple Nginx container through the proxy and access it via
+`https://quickstart.docker.localhost`.
 
 ### Before You Begin
 
@@ -47,6 +49,7 @@ curl -k https://traefik.docker.localhost
 ```
 
 **Expected output:**
+
 - Traefik container shows as "Up"
 - Network `traefik-proxy` exists
 - Dashboard returns HTML (or open in browser to see the interface)
@@ -80,11 +83,11 @@ If any check fails, return to the main [README.md](../README.md) and complete th
    ```
 
    **What this does:**
-   - `image: nginx:alpine` - Uses a lightweight Nginx web server
-   - `networks: traefik-proxy` - Connects to the proxy's network
-   - `traefik.enable=true` - Tells Traefik to route this container
-   - `Host('quickstart.docker.localhost')` - Defines the domain
-   - `tls=true` - Enables HTTPS
+    - `image: nginx:alpine` - Uses a lightweight Nginx web server
+    - `networks: traefik-proxy` - Connects to the proxy's network
+    - `traefik.enable=true` - Tells Traefik to route this container
+    - `Host('quickstart.docker.localhost')` - Defines the domain
+    - `tls=true` - Enables HTTPS
 
    **Note:** No `ports:` section needed! Traefik handles all routing.
 
@@ -109,20 +112,20 @@ If any check fails, return to the main [README.md](../README.md) and complete th
    Open the Traefik dashboard at [https://traefik.docker.localhost](https://traefik.docker.localhost)
 
    Navigate to **HTTP Routers** section. You should see:
-   - Router name: `quickstart`
-   - Rule: `Host('quickstart.docker.localhost')`
-   - TLS: ✓ (enabled)
-   - Status: Success (green indicator)
+    - Router name: `quickstart`
+    - Rule: `Host('quickstart.docker.localhost')`
+    - TLS: ✓ (enabled)
+    - Status: Success (green indicator)
 
 2. **Access your application:**
 
    Open [https://quickstart.docker.localhost](https://quickstart.docker.localhost) in your browser.
 
    **Expected outcome:**
-   - ✅ Browser shows "Welcome to nginx!" default page
-   - ✅ Connection is secure (padlock icon in address bar)
-   - ✅ No certificate warnings
-   - ✅ URL shows `https://quickstart.docker.localhost`
+    - ✅ Browser shows "Welcome to nginx!" default page
+    - ✅ Connection is secure (padlock icon in address bar)
+    - ✅ No certificate warnings
+    - ✅ URL shows `https://quickstart.docker.localhost`
 
 3. **Test from command line:**
 
@@ -207,13 +210,15 @@ docker compose up -d
 
 ### PHP Projects
 
-PHP applications typically require a web server (Nginx or Apache) and PHP-FPM. The examples below show production-ready configurations for popular PHP frameworks.
+PHP applications typically require a web server (Nginx or Apache) and PHP-FPM. The examples below show production-ready
+configurations for popular PHP frameworks.
 
 #### Laravel with Nginx + PHP-FPM
 
 Laravel applications work best with Nginx as a reverse proxy and PHP-FPM for processing PHP scripts.
 
 **Directory structure:**
+
 ```
 my-laravel-app/
 ├── compose.yml
@@ -225,6 +230,7 @@ my-laravel-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   app:
@@ -246,7 +252,7 @@ services:
       - DB_PASSWORD=secret
       - REDIS_HOST=redis
     healthcheck:
-      test: ["CMD", "php-fpm", "-t"]
+      test: [ "CMD", "php-fpm", "-t" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -265,7 +271,7 @@ services:
       - traefik-proxy
       - app-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -284,6 +290,7 @@ networks:
 ```
 
 **docker/nginx/default.conf:**
+
 ```nginx
 server {
     listen 80;
@@ -310,6 +317,7 @@ server {
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM php:8.2-fpm
 
@@ -343,6 +351,7 @@ RUN chown -R www-data:www-data /var/www
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -351,6 +360,7 @@ Access your Laravel app at: `https://laravel.docker.localhost`
 
 **Connecting to proxy's MySQL:**
 To use the MySQL service from the main proxy, modify the `compose.yml`:
+
 ```yaml
 services:
   app:
@@ -371,6 +381,7 @@ services:
 Symfony applications follow a similar pattern to Laravel, with adjustments for Symfony's directory structure.
 
 **compose.yml:**
+
 ```yaml
 services:
   php:
@@ -390,7 +401,7 @@ services:
       - APP_ENV=dev
       - APP_SECRET=your-secret-key
     healthcheck:
-      test: ["CMD", "php-fpm", "-t"]
+      test: [ "CMD", "php-fpm", "-t" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -409,7 +420,7 @@ services:
       - traefik-proxy
       - symfony-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -428,6 +439,7 @@ networks:
 ```
 
 **docker/nginx/symfony.conf:**
+
 ```nginx
 server {
     listen 80;
@@ -454,6 +466,7 @@ server {
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM php:8.2-fpm
 
@@ -490,6 +503,7 @@ RUN chown -R www-data:www-data /var/www/symfony/var
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -500,9 +514,11 @@ Access your Symfony app at: `https://symfony.docker.localhost`
 
 #### WordPress with MySQL
 
-WordPress requires both a web server with PHP support and a MySQL database. This example shows WordPress connecting to the proxy's MySQL service.
+WordPress requires both a web server with PHP support and a MySQL database. This example shows WordPress connecting to
+the proxy's MySQL service.
 
 **compose.yml:**
+
 ```yaml
 services:
   wordpress:
@@ -519,7 +535,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -538,6 +554,7 @@ networks:
 ```
 
 **Prerequisites:**
+
 1. Ensure the proxy's MySQL service is running with the `mysql` profile enabled
 2. Create the WordPress database:
 
@@ -551,6 +568,7 @@ EXIT;
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -558,13 +576,14 @@ docker compose up -d
 Access WordPress at: `https://wordpress.docker.localhost`
 
 **First-time setup:**
+
 1. Navigate to `https://wordpress.docker.localhost`
 2. Select your language
 3. Complete the installation form with:
-   - Site Title: Your site name
-   - Username: admin username
-   - Password: secure password
-   - Email: your email
+    - Site Title: Your site name
+    - Username: admin username
+    - Password: secure password
+    - Email: your email
 4. Click "Install WordPress"
 
 **Custom PHP settings (optional):**
@@ -580,6 +599,7 @@ RUN echo "upload_max_filesize = 64M" > /usr/local/etc/php/conf.d/uploads.ini && 
 ```
 
 Update `compose.yml`:
+
 ```yaml
 services:
   wordpress:
@@ -591,6 +611,7 @@ services:
 
 **Using phpMyAdmin:**
 If you enabled the `pma` profile in the proxy, access the database at `https://pma.docker.localhost` with:
+
 - Server: `mysql`
 - Username: `root`
 - Password: `root` (or your configured password)
@@ -599,25 +620,32 @@ If you enabled the `pma` profile in the proxy, access the database at `https://p
 
 **Common PHP Configuration Notes:**
 
-1. **Database connections:** When connecting to the proxy's MySQL/Redis services, use the container name (`mysql`, `redis`) as the host, not `localhost` or `127.0.0.1`.
+1. **Database connections:** When connecting to the proxy's MySQL/Redis services, use the container name (`mysql`,
+   `redis`) as the host, not `localhost` or `127.0.0.1`.
 
-2. **Multiple networks:** Services that need to communicate with both Traefik and other containers should be on both `traefik-proxy` and a private network.
+2. **Multiple networks:** Services that need to communicate with both Traefik and other containers should be on both
+   `traefik-proxy` and a private network.
 
-3. **Environment variables:** Store sensitive data in `.env` files (excluded from git) and reference them in `compose.yml`.
+3. **Environment variables:** Store sensitive data in `.env` files (excluded from git) and reference them in
+   `compose.yml`.
 
 4. **Volume persistence:** Use named volumes for databases and uploads to prevent data loss.
 
-5. **Traefik network specification:** When exposing services through Traefik that are on multiple networks, add the `traefik.docker.network=traefik-proxy` label to ensure proper routing.
+5. **Traefik network specification:** When exposing services through Traefik that are on multiple networks, add the
+   `traefik.docker.network=traefik-proxy` label to ensure proper routing.
 
 ### Node.js Applications
 
-Node.js applications can run directly with Node or through process managers like PM2. The examples below cover popular frameworks with both development and production configurations.
+Node.js applications can run directly with Node or through process managers like PM2. The examples below cover popular
+frameworks with both development and production configurations.
 
 #### Express.js Application
 
-Express.js applications typically run on port 3000 by default. This example shows a simple Express app with custom port configuration.
+Express.js applications typically run on port 3000 by default. This example shows a simple Express app with custom port
+configuration.
 
 **Directory structure:**
+
 ```
 my-express-app/
 ├── compose.yml
@@ -628,6 +656,7 @@ my-express-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   express:
@@ -645,7 +674,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -662,6 +691,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -685,6 +715,7 @@ CMD ["npm", "start"]
 ```
 
 **app.js (minimal example):**
+
 ```javascript
 const express = require('express');
 const app = express();
@@ -692,12 +723,12 @@ const PORT = process.env.PORT || 3000;
 
 // Health check endpoint (required for healthcheck)
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({status: 'ok'});
 });
 
 // Main route
 app.get('/', (req, res) => {
-  res.json({ message: 'Hello from Express!' });
+  res.json({message: 'Hello from Express!'});
 });
 
 app.listen(PORT, () => {
@@ -706,24 +737,26 @@ app.listen(PORT, () => {
 ```
 
 **package.json:**
+
 ```json
 {
-  "name": "express-docker-app",
-  "version": "1.0.0",
-  "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  }
+    "name": "express-docker-app",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "node app.js",
+        "dev": "nodemon app.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
 }
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -764,9 +797,11 @@ services:
 
 #### Next.js Application
 
-Next.js applications require special consideration for hot reload and development server configuration. This example includes both development and production setups.
+Next.js applications require special consideration for hot reload and development server configuration. This example
+includes both development and production setups.
 
 **Directory structure:**
+
 ```
 my-nextjs-app/
 ├── compose.yml
@@ -778,6 +813,7 @@ my-nextjs-app/
 ```
 
 **compose.yml (Development):**
+
 ```yaml
 services:
   nextjs:
@@ -796,7 +832,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -813,6 +849,7 @@ networks:
 ```
 
 **Dockerfile.dev:**
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -834,6 +871,7 @@ CMD ["npm", "run", "dev"]
 ```
 
 **Dockerfile (Production):**
+
 ```dockerfile
 FROM node:20-alpine AS builder
 
@@ -866,44 +904,47 @@ CMD ["node", "server.js"]
 ```
 
 **next.config.js:**
+
 ```javascript
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker
-  output: 'standalone',
+    // Enable standalone output for Docker
+    output: 'standalone',
 
-  // Required for hot reload in Docker
-  webpackDevMiddleware: config => {
-    config.watchOptions = {
-      poll: 1000,
-      aggregateTimeout: 300,
-    }
-    return config
-  },
-}
+    // Required for hot reload in Docker
+    webpackDevMiddleware: config => {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      }
+      return config
+    },
+  }
 
 module.exports = nextConfig
 ```
 
 **package.json:**
+
 ```json
 {
-  "name": "nextjs-docker-app",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  }
+    "name": "nextjs-docker-app",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+    },
+    "dependencies": {
+        "next": "^14.0.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    }
 }
 ```
 
 **Usage (Development):**
+
 ```bash
 docker compose up -d
 ```
@@ -911,12 +952,14 @@ docker compose up -d
 Access your Next.js app at: `https://nextjs.docker.localhost`
 
 **Hot reload verification:**
+
 1. Edit any page in `pages/` or `app/`
 2. Save the file
 3. Browser should auto-refresh with changes
 
 **Production build:**
 Switch to production Dockerfile in `compose.yml`:
+
 ```yaml
 services:
   nextjs:
@@ -930,6 +973,7 @@ services:
 
 **Troubleshooting hot reload:**
 If hot reload isn't working:
+
 1. Ensure `WATCHPACK_POLLING=true` is set
 2. Verify volume mounts include source code
 3. Check `next.config.js` has webpack dev middleware config
@@ -939,9 +983,11 @@ If hot reload isn't working:
 
 #### NestJS Application
 
-NestJS applications follow a modular architecture and work well with Docker. This example includes development and production configurations.
+NestJS applications follow a modular architecture and work well with Docker. This example includes development and
+production configurations.
 
 **Directory structure:**
+
 ```
 my-nestjs-app/
 ├── compose.yml
@@ -956,6 +1002,7 @@ my-nestjs-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   nestjs:
@@ -974,7 +1021,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -991,6 +1038,7 @@ networks:
 ```
 
 **Dockerfile.dev:**
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -1017,6 +1065,7 @@ CMD ["npm", "run", "start:dev"]
 ```
 
 **Dockerfile (Production):**
+
 ```dockerfile
 FROM node:20-alpine AS builder
 
@@ -1054,9 +1103,10 @@ CMD ["node", "dist/main"]
 ```
 
 **src/main.ts:**
+
 ```typescript
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import {NestFactory} from '@nestjs/core';
+import {AppModule} from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -1069,50 +1119,54 @@ async function bootstrap() {
 
   console.log(`Application is running on: http://localhost:${port}`);
 }
+
 bootstrap();
 ```
 
 **package.json:**
+
 ```json
 {
-  "name": "nestjs-docker-app",
-  "version": "1.0.0",
-  "scripts": {
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
-    "build": "nest build"
-  },
-  "dependencies": {
-    "@nestjs/common": "^10.0.0",
-    "@nestjs/core": "^10.0.0",
-    "@nestjs/platform-express": "^10.0.0",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.1"
-  },
-  "devDependencies": {
-    "@nestjs/cli": "^10.0.0",
-    "@nestjs/schematics": "^10.0.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
-  }
+    "name": "nestjs-docker-app",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "nest start",
+        "start:dev": "nest start --watch",
+        "start:prod": "node dist/main",
+        "build": "nest build"
+    },
+    "dependencies": {
+        "@nestjs/common": "^10.0.0",
+        "@nestjs/core": "^10.0.0",
+        "@nestjs/platform-express": "^10.0.0",
+        "reflect-metadata": "^0.1.13",
+        "rxjs": "^7.8.1"
+    },
+    "devDependencies": {
+        "@nestjs/cli": "^10.0.0",
+        "@nestjs/schematics": "^10.0.0",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    }
 }
 ```
 
 **Health check endpoint (src/health/health.controller.ts):**
+
 ```typescript
-import { Controller, Get } from '@nestjs/common';
+import {Controller, Get} from '@nestjs/common';
 
 @Controller('health')
 export class HealthController {
   @Get()
   check() {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return {status: 'ok', timestamp: new Date().toISOString()};
   }
 }
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -1120,10 +1174,12 @@ docker compose up -d
 Access your NestJS app at: `https://nestjs.docker.localhost`
 
 **Development with hot reload:**
-The Dockerfile.dev configuration automatically enables hot reload through NestJS's watch mode. Changes to TypeScript files will trigger automatic recompilation.
+The Dockerfile.dev configuration automatically enables hot reload through NestJS's watch mode. Changes to TypeScript
+files will trigger automatic recompilation.
 
 **Production deployment:**
 Update `compose.yml` to use production Dockerfile:
+
 ```yaml
 services:
   nestjs:
@@ -1157,15 +1213,17 @@ services:
 
 **Common Node.js Configuration Notes:**
 
-1. **Port configuration:** Always use the `traefik.http.services.<name>.loadbalancer.server.port` label to specify the port your Node.js app listens on. This is crucial when your app doesn't use port 80.
+1. **Port configuration:** Always use the `traefik.http.services.<name>.loadbalancer.server.port` label to specify the
+   port your Node.js app listens on. This is crucial when your app doesn't use port 80.
 
 2. **Hot reload in Docker:**
-   - For Next.js: Use `WATCHPACK_POLLING=true` and configure webpack dev middleware
-   - For NestJS: Use `--watch` flag in development
-   - For Express/custom apps: Use `nodemon` with polling enabled
-   - Always mount source code as volumes for development
+    - For Next.js: Use `WATCHPACK_POLLING=true` and configure webpack dev middleware
+    - For NestJS: Use `--watch` flag in development
+    - For Express/custom apps: Use `nodemon` with polling enabled
+    - Always mount source code as volumes for development
 
-3. **node_modules handling:** Use a separate volume for `node_modules` to prevent host files from overwriting container dependencies:
+3. **node_modules handling:** Use a separate volume for `node_modules` to prevent host files from overwriting container
+   dependencies:
    ```yaml
    volumes:
      - ./:/app
@@ -1182,24 +1240,29 @@ services:
 
 5. **Health checks:** Implement a `/health` endpoint in your app for proper container health monitoring.
 
-6. **Multi-stage builds:** For production, use multi-stage Dockerfiles to reduce final image size and include only necessary files.
+6. **Multi-stage builds:** For production, use multi-stage Dockerfiles to reduce final image size and include only
+   necessary files.
 
 7. **Custom ports examples:**
-   - Port 8080: `traefik.http.services.myapp.loadbalancer.server.port=8080`
-   - Port 4000: `traefik.http.services.myapp.loadbalancer.server.port=4000`
-   - Port 5000: `traefik.http.services.myapp.loadbalancer.server.port=5000`
+    - Port 8080: `traefik.http.services.myapp.loadbalancer.server.port=8080`
+    - Port 4000: `traefik.http.services.myapp.loadbalancer.server.port=4000`
+    - Port 5000: `traefik.http.services.myapp.loadbalancer.server.port=5000`
 
-8. **Database connections:** When connecting to the proxy's MySQL service, use `mysql` as the hostname (not `localhost` or `127.0.0.1`).
+8. **Database connections:** When connecting to the proxy's MySQL service, use `mysql` as the hostname (not `localhost`
+   or `127.0.0.1`).
 
 ### Python/Django Projects
 
-Python applications can be served using various WSGI/ASGI servers like Gunicorn, Uvicorn, or directly with built-in development servers. The examples below cover popular frameworks with production-ready configurations.
+Python applications can be served using various WSGI/ASGI servers like Gunicorn, Uvicorn, or directly with built-in
+development servers. The examples below cover popular frameworks with production-ready configurations.
 
 #### Django with Gunicorn
 
-Django applications are best served with Gunicorn in production environments. This example includes PostgreSQL database integration.
+Django applications are best served with Gunicorn in production environments. This example includes PostgreSQL database
+integration.
 
 **Directory structure:**
+
 ```
 my-django-app/
 ├── compose.yml
@@ -1215,6 +1278,7 @@ my-django-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   django:
@@ -1238,7 +1302,7 @@ services:
     depends_on:
       - postgres
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1263,7 +1327,7 @@ services:
     networks:
       - django-network
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "django"]
+      test: [ "CMD", "pg_isready", "-U", "django" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1282,6 +1346,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM python:3.12-slim
 
@@ -1317,6 +1382,7 @@ CMD ["gunicorn", "myproject.wsgi:application", "--bind", "0.0.0.0:8000", "--work
 ```
 
 **requirements.txt:**
+
 ```
 Django>=5.0,<6.0
 gunicorn>=21.2.0
@@ -1326,6 +1392,7 @@ redis>=5.0.1
 ```
 
 **myproject/settings.py (database configuration):**
+
 ```python
 import os
 import environ
@@ -1365,6 +1432,7 @@ ALLOWED_HOSTS = ['django.docker.localhost', 'localhost', '127.0.0.1']
 ```
 
 **Health check view (myproject/urls.py):**
+
 ```python
 from django.http import JsonResponse
 from django.urls import path
@@ -1379,6 +1447,7 @@ urlpatterns = [
 ```
 
 **Usage:**
+
 ```bash
 # Start the services
 docker compose up -d
@@ -1407,6 +1476,7 @@ services:
 ```
 
 Update `requirements.txt`:
+
 ```
 Django>=5.0,<6.0
 gunicorn>=21.2.0
@@ -1414,6 +1484,7 @@ mysqlclient>=2.2.0  # MySQL driver instead of psycopg2
 ```
 
 Create the database:
+
 ```bash
 docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE django_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
@@ -1436,9 +1507,11 @@ services:
 
 #### FastAPI with Uvicorn
 
-FastAPI is a modern, async Python framework that's perfect for building APIs. This example shows FastAPI with Uvicorn ASGI server.
+FastAPI is a modern, async Python framework that's perfect for building APIs. This example shows FastAPI with Uvicorn
+ASGI server.
 
 **Directory structure:**
+
 ```
 my-fastapi-app/
 ├── compose.yml
@@ -1452,6 +1525,7 @@ my-fastapi-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   fastapi:
@@ -1473,7 +1547,7 @@ services:
     depends_on:
       - postgres
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1498,7 +1572,7 @@ services:
     networks:
       - fastapi-network
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "fastapi"]
+      test: [ "CMD", "pg_isready", "-U", "fastapi" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1515,6 +1589,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM python:3.12-slim
 
@@ -1544,6 +1619,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 **requirements.txt:**
+
 ```
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
@@ -1555,6 +1631,7 @@ redis>=5.0.1
 ```
 
 **main.py:**
+
 ```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -1607,6 +1684,7 @@ async def shutdown_event():
 ```
 
 **Database configuration (app/database.py):**
+
 ```python
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -1632,6 +1710,7 @@ def get_db():
 ```
 
 **Usage:**
+
 ```bash
 # Start the services
 docker compose up -d
@@ -1641,6 +1720,7 @@ docker compose logs -f fastapi
 ```
 
 Access your FastAPI app at:
+
 - Application: `https://fastapi.docker.localhost`
 - API Docs: `https://fastapi.docker.localhost/docs`
 - ReDoc: `https://fastapi.docker.localhost/redoc`
@@ -1672,6 +1752,7 @@ services:
 ```
 
 Update `requirements.txt`:
+
 ```
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
@@ -1681,6 +1762,7 @@ cryptography>=42.0.0
 ```
 
 Create the database:
+
 ```bash
 docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE fastapi_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
@@ -1692,6 +1774,7 @@ docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE fastapi_db CHARACT
 Flask is a lightweight, flexible Python web framework. This example shows Flask with Gunicorn for production.
 
 **Directory structure:**
+
 ```
 my-flask-app/
 ├── compose.yml
@@ -1703,6 +1786,7 @@ my-flask-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   flask:
@@ -1725,7 +1809,7 @@ services:
     depends_on:
       - postgres
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1750,7 +1834,7 @@ services:
     networks:
       - flask-network
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "flask"]
+      test: [ "CMD", "pg_isready", "-U", "flask" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1767,6 +1851,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 FROM python:3.12-slim
 
@@ -1796,6 +1881,7 @@ CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
 ```
 
 **requirements.txt:**
+
 ```
 Flask>=3.0.0
 gunicorn>=21.2.0
@@ -1806,6 +1892,7 @@ python-dotenv>=1.0.0
 ```
 
 **app.py:**
+
 ```python
 from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
@@ -1877,6 +1964,7 @@ if __name__ == '__main__':
 ```
 
 **config.py (optional configuration file):**
+
 ```python
 import os
 
@@ -1906,6 +1994,7 @@ config = {
 ```
 
 **Usage:**
+
 ```bash
 # Start the services
 docker compose up -d
@@ -1949,6 +2038,7 @@ services:
 ```
 
 Update `requirements.txt`:
+
 ```
 Flask>=3.0.0
 gunicorn>=21.2.0
@@ -1958,6 +2048,7 @@ Flask-Redis>=0.4.0
 ```
 
 Update database URI in `app.py`:
+
 ```python
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL',
@@ -1966,6 +2057,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 ```
 
 Create the database:
+
 ```bash
 docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE flask_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
@@ -1974,51 +2066,52 @@ docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE flask_db CHARACTER
 
 **Common Python Configuration Notes:**
 
-1. **Port specification:** Always specify the port your application listens on using the `traefik.http.services.<name>.loadbalancer.server.port` label:
-   - Django/FastAPI/Gunicorn: Usually 8000
-   - Flask: Usually 5000
-   - Uvicorn: Configurable (default 8000)
+1. **Port specification:** Always specify the port your application listens on using the
+   `traefik.http.services.<name>.loadbalancer.server.port` label:
+    - Django/FastAPI/Gunicorn: Usually 8000
+    - Flask: Usually 5000
+    - Uvicorn: Configurable (default 8000)
 
 2. **Database connections:**
-   - **PostgreSQL**: Use `postgresql://user:password@host:port/database`
-   - **MySQL**: Use `mysql://user:password@host:port/database`
-   - When connecting to proxy's MySQL: use `mysql` as hostname
-   - When using dedicated PostgreSQL: use service name as hostname
+    - **PostgreSQL**: Use `postgresql://user:password@host:port/database`
+    - **MySQL**: Use `mysql://user:password@host:port/database`
+    - When connecting to proxy's MySQL: use `mysql` as hostname
+    - When using dedicated PostgreSQL: use service name as hostname
 
 3. **Health check endpoints:**
-   - Always implement a `/health` endpoint for container health monitoring
-   - Return JSON with status information
-   - Check database connectivity in health endpoint
+    - Always implement a `/health` endpoint for container health monitoring
+    - Return JSON with status information
+    - Check database connectivity in health endpoint
 
 4. **Environment variables:**
-   - Use environment variables for configuration (12-factor app)
-   - Store secrets in `.env` files (git-ignored)
-   - Use libraries like `python-dotenv`, `django-environ`, or `pydantic-settings`
+    - Use environment variables for configuration (12-factor app)
+    - Store secrets in `.env` files (git-ignored)
+    - Use libraries like `python-dotenv`, `django-environ`, or `pydantic-settings`
 
 5. **Static and media files (Django):**
-   - Use volumes for static and media files: `static_volume` and `media_volume`
-   - Run `collectstatic` during build or as init command
-   - Consider using Nginx for serving static files in production
+    - Use volumes for static and media files: `static_volume` and `media_volume`
+    - Run `collectstatic` during build or as init command
+    - Consider using Nginx for serving static files in production
 
 6. **Multiple workers:**
-   - Gunicorn: `-w 4` (4 workers) or `--workers 4`
-   - Uvicorn: Use `--workers N` or run behind Gunicorn with uvicorn workers
-   - Formula: `(2 × CPU cores) + 1`
+    - Gunicorn: `-w 4` (4 workers) or `--workers 4`
+    - Uvicorn: Use `--workers N` or run behind Gunicorn with uvicorn workers
+    - Formula: `(2 × CPU cores) + 1`
 
 7. **Database migrations:**
-   - Django: `docker compose exec <service> python manage.py migrate`
-   - Flask: `docker compose exec <service> flask db upgrade` (with Flask-Migrate)
-   - FastAPI: Use Alembic for migrations
+    - Django: `docker compose exec <service> python manage.py migrate`
+    - Flask: `docker compose exec <service> flask db upgrade` (with Flask-Migrate)
+    - FastAPI: Use Alembic for migrations
 
 8. **Redis integration:**
-   - Connect to proxy's Redis: `REDIS_URL=redis://redis:6379/0`
-   - Use for caching, sessions, or Celery task queue
-   - Must be on `traefik-proxy` network to access proxy's Redis
+    - Connect to proxy's Redis: `REDIS_URL=redis://redis:6379/0`
+    - Use for caching, sessions, or Celery task queue
+    - Must be on `traefik-proxy` network to access proxy's Redis
 
 9. **Development vs Production:**
-   - **Development**: Use framework's built-in server with `--reload`/debug mode
-   - **Production**: Use Gunicorn/Uvicorn with multiple workers
-   - Mount source code as volume only in development
+    - **Development**: Use framework's built-in server with `--reload`/debug mode
+    - **Production**: Use Gunicorn/Uvicorn with multiple workers
+    - Mount source code as volume only in development
 
 10. **Network configuration:**
     - Services need `traefik-proxy` for Traefik routing
@@ -2082,13 +2175,17 @@ networks:
 
 ### Go Applications
 
-Go applications are ideal for containerized deployments due to their compiled nature. Unlike interpreted languages, Go apps are deployed as single binaries without source code, resulting in minimal, secure container images. The examples below demonstrate production-ready configurations for popular Go frameworks.
+Go applications are ideal for containerized deployments due to their compiled nature. Unlike interpreted languages, Go
+apps are deployed as single binaries without source code, resulting in minimal, secure container images. The examples
+below demonstrate production-ready configurations for popular Go frameworks.
 
 #### Gin Framework Application
 
-Gin is a high-performance HTTP web framework for Go. This example shows a production deployment using multi-stage builds to create a minimal container image.
+Gin is a high-performance HTTP web framework for Go. This example shows a production deployment using multi-stage builds
+to create a minimal container image.
 
 **Directory structure:**
+
 ```
 my-gin-app/
 ├── compose.yml
@@ -2100,6 +2197,7 @@ my-gin-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   gin-app:
@@ -2114,7 +2212,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -2131,6 +2229,7 @@ networks:
 ```
 
 **Dockerfile (Multi-stage build):**
+
 ```dockerfile
 # Build stage
 FROM golang:1.21-alpine AS builder
@@ -2171,6 +2270,7 @@ CMD ["./main"]
 ```
 
 **main.go (minimal example):**
+
 ```go
 package main
 
@@ -2225,6 +2325,7 @@ func main() {
 ```
 
 **go.mod:**
+
 ```go
 module gin-app
 
@@ -2234,6 +2335,7 @@ require github.com/gin-gonic/gin v1.9.1
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -2241,6 +2343,7 @@ docker compose up -d
 Access your Gin app at: `https://gin-app.docker.localhost`
 
 **Key features:**
+
 - **Multi-stage build**: Reduces final image size from ~800MB to ~15MB
 - **Binary-only deployment**: No source code in production container
 - **Minimal attack surface**: Alpine-based image with only runtime dependencies
@@ -2250,9 +2353,11 @@ Access your Gin app at: `https://gin-app.docker.localhost`
 
 #### Echo Framework Application
 
-Echo is another high-performance, minimalist Go web framework. This example demonstrates Echo's routing capabilities and middleware integration.
+Echo is another high-performance, minimalist Go web framework. This example demonstrates Echo's routing capabilities and
+middleware integration.
 
 **Directory structure:**
+
 ```
 my-echo-app/
 ├── compose.yml
@@ -2264,6 +2369,7 @@ my-echo-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   echo-app:
@@ -2278,7 +2384,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -2295,6 +2401,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 # Build stage
 FROM golang:1.21-alpine AS builder
@@ -2327,6 +2434,7 @@ CMD ["./main"]
 ```
 
 **main.go:**
+
 ```go
 package main
 
@@ -2388,6 +2496,7 @@ func main() {
 ```
 
 **go.mod:**
+
 ```go
 module echo-app
 
@@ -2399,6 +2508,7 @@ require (
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -2406,6 +2516,7 @@ docker compose up -d
 Access your Echo app at: `https://echo-app.docker.localhost`
 
 **Key features:**
+
 - **Built-in middleware**: Logger, Recover, CORS pre-configured
 - **Route groups**: Clean API organization
 - **Optimized binary**: Uses `-ldflags="-w -s"` to strip debug symbols
@@ -2415,9 +2526,11 @@ Access your Echo app at: `https://echo-app.docker.localhost`
 
 #### Standard Library (net/http) Application
 
-For applications that don't require a framework, Go's standard library provides robust HTTP handling. This example shows a production-ready setup using only the standard library.
+For applications that don't require a framework, Go's standard library provides robust HTTP handling. This example shows
+a production-ready setup using only the standard library.
 
 **Directory structure:**
+
 ```
 my-go-app/
 ├── compose.yml
@@ -2429,6 +2542,7 @@ my-go-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   go-app:
@@ -2443,7 +2557,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -2460,6 +2574,7 @@ networks:
 ```
 
 **Dockerfile:**
+
 ```dockerfile
 # Build stage
 FROM golang:1.21-alpine AS builder
@@ -2498,6 +2613,7 @@ CMD ["./main"]
 ```
 
 **main.go:**
+
 ```go
 package main
 
@@ -2609,6 +2725,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 ```
 
 **go.mod:**
+
 ```go
 module go-app
 
@@ -2616,6 +2733,7 @@ go 1.21
 ```
 
 **Usage:**
+
 ```bash
 docker compose up -d
 ```
@@ -2623,6 +2741,7 @@ docker compose up -d
 Access your Go app at: `https://go-app.docker.localhost`
 
 **Key features:**
+
 - **Zero external dependencies**: Uses only Go standard library
 - **Graceful shutdown**: Handles SIGTERM/SIGINT signals properly
 - **Production timeouts**: Configured read/write/idle timeouts
@@ -2653,6 +2772,7 @@ CMD ["./app"]
 ```
 
 **Benefits:**
+
 - **Size reduction**: 800MB → 15MB (98% smaller)
 - **Security**: No compiler or source code in production
 - **Attack surface**: Minimal packages installed
@@ -2669,6 +2789,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 ```
 
 **Flags explained:**
+
 - `CGO_ENABLED=0`: Disable C dependencies
 - `-ldflags="-w -s"`: Strip debug symbols (smaller binary)
 - `-a`: Force rebuild of all packages
@@ -2692,6 +2813,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ```
 
 **When to use each:**
+
 - **Alpine**: Development, debugging, health checks with wget/curl
 - **Distroless**: Production with external health checks
 - **Scratch**: Maximum security, external monitoring only
@@ -2716,6 +2838,7 @@ services:
 ```
 
 **Why?**
+
 - Go compiles to binary - source code not needed at runtime
 - Eliminates exposure of proprietary source code
 - Prevents accidental modification of running code
@@ -2754,11 +2877,11 @@ When using minimal images (distroless/scratch), adjust health checks:
 ```yaml
 # Alpine - can use wget
 healthcheck:
-  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+  test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
 
 # Distroless/Scratch - use external checks
 healthcheck:
-  test: ["NONE"]  # Rely on Traefik's health check
+  test: [ "NONE" ]  # Rely on Traefik's health check
 ```
 
 Or compile a health check binary:
@@ -2822,21 +2945,25 @@ CMD ["./app"]
 
 ## Common Scenarios
 
-This section covers real-world scenarios you'll encounter when building multi-service applications with the Docker Proxy. Each example demonstrates production-ready patterns for common architectural needs.
+This section covers real-world scenarios you'll encounter when building multi-service applications with the Docker
+Proxy. Each example demonstrates production-ready patterns for common architectural needs.
 
 ### Multi-Service Project (Frontend + Backend)
 
-Most modern applications consist of multiple services working together. This scenario shows a React frontend communicating with an Express API backend, both exposed through the proxy.
+Most modern applications consist of multiple services working together. This scenario shows a React frontend
+communicating with an Express API backend, both exposed through the proxy.
 
 **Use case:** Single-page application with a REST API backend.
 
 **Architecture:**
+
 - Frontend: React app (port 3000)
 - Backend: Express API (port 4000)
 - Both services accessible via custom domains
 - Backend can optionally connect to proxy's MySQL/Redis
 
 **Directory structure:**
+
 ```
 fullstack-app/
 ├── compose.yml
@@ -2851,6 +2978,7 @@ fullstack-app/
 ```
 
 **compose.yml:**
+
 ```yaml
 services:
   frontend:
@@ -2865,7 +2993,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -2893,7 +3021,7 @@ services:
       - traefik-proxy
       - app-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -2913,6 +3041,7 @@ networks:
 ```
 
 **frontend/Dockerfile:**
+
 ```dockerfile
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -2929,6 +3058,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 **frontend/nginx.conf:**
+
 ```nginx
 server {
     listen 3000;
@@ -2952,6 +3082,7 @@ server {
 ```
 
 **backend/Dockerfile:**
+
 ```dockerfile
 FROM node:20-alpine
 WORKDIR /app
@@ -2963,6 +3094,7 @@ CMD ["node", "server.js"]
 ```
 
 **backend/server.js (CORS configuration example):**
+
 ```javascript
 const express = require('express');
 const cors = require('cors');
@@ -2978,12 +3110,12 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({status: 'ok'});
 });
 
 // API routes
 app.get('/api/data', (req, res) => {
-  res.json({ message: 'Hello from backend!' });
+  res.json({message: 'Hello from backend!'});
 });
 
 const PORT = process.env.PORT || 4000;
@@ -2993,6 +3125,7 @@ app.listen(PORT, () => {
 ```
 
 **Usage:**
+
 ```bash
 # Start all services
 docker compose up -d
@@ -3006,6 +3139,7 @@ docker compose logs -f
 ```
 
 **Key points:**
+
 - **Separate domains**: Frontend and backend use different subdomains (cleaner separation)
 - **CORS configuration**: Backend allows requests from frontend domain
 - **Environment variables**: Frontend knows backend URL via `REACT_APP_API_URL`
@@ -3014,6 +3148,7 @@ docker compose logs -f
 - **Health checks**: Both services have health endpoints for monitoring
 
 **Testing the setup:**
+
 ```bash
 # Test frontend
 curl https://myapp.docker.localhost
@@ -3029,9 +3164,11 @@ docker exec fullstack-frontend wget -qO- https://api.myapp.docker.localhost/heal
 
 ### Using Proxy-Provided MySQL and Redis
 
-Instead of running separate database containers for each project, you can use the centralized MySQL and Redis services provided by the proxy. This approach saves resources and simplifies management.
+Instead of running separate database containers for each project, you can use the centralized MySQL and Redis services
+provided by the proxy. This approach saves resources and simplifies management.
 
 **Benefits:**
+
 - Single MySQL/Redis instance for all projects
 - Reduced memory usage (one container vs. many)
 - Centralized database management via phpMyAdmin
@@ -3063,6 +3200,7 @@ Instead of running separate database containers for each project, you can use th
 **Scenario: Laravel application using proxy's MySQL and Redis**
 
 **compose.yml:**
+
 ```yaml
 services:
   laravel:
@@ -3093,7 +3231,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "php-fpm", "-t"]
+      test: [ "CMD", "php-fpm", "-t" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -3116,7 +3254,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -3168,16 +3306,19 @@ networks:
 **Managing databases:**
 
 **View all databases:**
+
 ```bash
 docker exec -it mysql mysql -uroot -proot -e "SHOW DATABASES;"
 ```
 
 **Create a new database:**
+
 ```bash
 docker exec -it mysql mysql -uroot -proot -e "CREATE DATABASE myapp_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
 **Create a database user:**
+
 ```bash
 docker exec -it mysql mysql -uroot -proot << EOF
 CREATE USER 'myapp'@'%' IDENTIFIED BY 'secret';
@@ -3187,11 +3328,13 @@ EOF
 ```
 
 **Backup a database:**
+
 ```bash
 docker exec mysql mysqldump -uroot -proot laravel_app > backup.sql
 ```
 
 **Restore a database:**
+
 ```bash
 docker exec -i mysql mysql -uroot -proot laravel_app < backup.sql
 ```
@@ -3199,21 +3342,25 @@ docker exec -i mysql mysql -uroot -proot laravel_app < backup.sql
 **Redis operations:**
 
 **Test Redis connection:**
+
 ```bash
 docker exec -it redis redis-cli ping
 ```
 
 **View all keys:**
+
 ```bash
 docker exec -it redis redis-cli KEYS '*'
 ```
 
 **Clear all cache:**
+
 ```bash
 docker exec -it redis redis-cli FLUSHDB
 ```
 
 **Monitor Redis commands:**
+
 ```bash
 docker exec -it redis redis-cli MONITOR
 ```
@@ -3223,15 +3370,15 @@ docker exec -it redis redis-cli MONITOR
 1. **Network requirement**: Your services **must** be on the `traefik-proxy` network to access MySQL and Redis.
 
 2. **Connection strings**: Use container names as hostnames:
-   - MySQL: `mysql:3306`
-   - Redis: `redis:6379`
+    - MySQL: `mysql:3306`
+    - Redis: `redis:6379`
 
 3. **Security**: The default password is `root`. For production, change `MYSQL_ROOT_PASSWORD` in the proxy's `.env`.
 
 4. **Multiple projects**: All projects share the same MySQL/Redis instances. Use unique database names:
-   - Project A: `projecta_db`
-   - Project B: `projectb_db`
-   - Project C: `projectc_db`
+    - Project A: `projecta_db`
+    - Project B: `projectb_db`
+    - Project C: `projectc_db`
 
 5. **phpMyAdmin access**: Manage all databases via `https://pma.docker.localhost` (login: `root` / `root`).
 
@@ -3245,6 +3392,7 @@ docker exec -it redis redis-cli MONITOR
 **Example connection strings for different frameworks:**
 
 **Laravel (.env):**
+
 ```env
 DB_CONNECTION=mysql
 DB_HOST=mysql
@@ -3258,6 +3406,7 @@ REDIS_PORT=6379
 ```
 
 **Django (settings.py):**
+
 ```python
 DATABASES = {
     'default': {
@@ -3279,6 +3428,7 @@ CACHES = {
 ```
 
 **Node.js (Express):**
+
 ```javascript
 const mysql = require('mysql2');
 const redis = require('redis');
@@ -3299,6 +3449,7 @@ const redisClient = redis.createClient({
 ```
 
 **FastAPI (Python):**
+
 ```python
 # Database URL
 DATABASE_URL = "mysql://root:root@mysql:3306/fastapi_app"
@@ -3312,11 +3463,14 @@ redis_client = redis.Redis(host='redis', port=6379, db=0)
 
 ### Using Proxy-Provided Mailpit Email Testing
 
-Instead of sending real emails during development or configuring external email services, you can use the centralized Mailpit service provided by the proxy. Mailpit captures all outgoing emails, allowing you to inspect them through a web interface.
+Instead of sending real emails during development or configuring external email services, you can use the centralized
+Mailpit service provided by the proxy. Mailpit captures all outgoing emails, allowing you to inspect them through a web
+interface.
 
 **What is Mailpit?**
 
 Mailpit is a modern email testing tool (successor to MailHog) that:
+
 - Captures all emails sent via SMTP
 - Provides a web interface to view emails
 - Supports attachments, HTML emails, and multipart messages
@@ -3324,6 +3478,7 @@ Mailpit is a modern email testing tool (successor to MailHog) that:
 - Requires zero configuration on the email receiving side
 
 **Benefits:**
+
 - Test email functionality without sending real emails
 - View emails in a web interface at `https://mailpit.docker.localhost`
 - Single Mailpit instance for all projects
@@ -3362,6 +3517,7 @@ Mailpit is a modern email testing tool (successor to MailHog) that:
 **SMTP Configuration:**
 
 All applications should use these settings to send emails through Mailpit:
+
 - **SMTP Host:** `mailpit`
 - **SMTP Port:** `1025`
 - **Encryption:** None (not required for local development)
@@ -3376,6 +3532,7 @@ All applications should use these settings to send emails through Mailpit:
 Laravel makes email configuration simple with environment variables.
 
 **compose.yml:**
+
 ```yaml
 services:
   laravel:
@@ -3411,6 +3568,7 @@ networks:
 ```
 
 **.env file:**
+
 ```dotenv
 MAIL_MAILER=smtp
 MAIL_HOST=mailpit
@@ -3423,6 +3581,7 @@ MAIL_FROM_NAME="${APP_NAME}"
 ```
 
 **Testing email sending:**
+
 ```bash
 # Enter Laravel container
 docker compose exec laravel bash
@@ -3443,6 +3602,7 @@ Check [https://mailpit.docker.localhost](https://mailpit.docker.localhost) to se
 Symfony uses the Mailer component with DSN configuration.
 
 **compose.yml:**
+
 ```yaml
 services:
   symfony:
@@ -3470,15 +3630,17 @@ networks:
 ```
 
 **.env file:**
+
 ```dotenv
 MAILER_DSN=smtp://mailpit:1025
 ```
 
 **services.yaml (optional explicit configuration):**
+
 ```yaml
 framework:
-    mailer:
-        dsn: '%env(MAILER_DSN)%'
+  mailer:
+    dsn: '%env(MAILER_DSN)%'
 ```
 
 ---
@@ -3488,6 +3650,7 @@ framework:
 Django uses the built-in email backend with SMTP settings.
 
 **compose.yml:**
+
 ```yaml
 services:
   django:
@@ -3518,6 +3681,7 @@ networks:
 ```
 
 **settings.py:**
+
 ```python
 import os
 
@@ -3533,6 +3697,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@example.com')
 ```
 
 **Testing email sending:**
+
 ```bash
 # Enter Django container
 docker compose exec django bash
@@ -3550,6 +3715,7 @@ python manage.py shell
 Rails uses Action Mailer with SMTP configuration.
 
 **compose.yml:**
+
 ```yaml
 services:
   rails:
@@ -3578,6 +3744,7 @@ networks:
 ```
 
 **config/environments/development.rb:**
+
 ```ruby
 Rails.application.configure do
   # Mailpit configuration
@@ -3595,6 +3762,7 @@ end
 ```
 
 **Testing email sending:**
+
 ```bash
 # Enter Rails container
 docker compose exec rails bash
@@ -3611,6 +3779,7 @@ irb> ActionMailer::Base.mail(from: 'test@example.com', to: 'user@example.com', s
 Node.js applications commonly use Nodemailer for sending emails.
 
 **compose.yml:**
+
 ```yaml
 services:
   nodejs:
@@ -3639,6 +3808,7 @@ networks:
 ```
 
 **mail.js (Nodemailer configuration):**
+
 ```javascript
 const nodemailer = require('nodemailer');
 
@@ -3665,13 +3835,14 @@ async function sendEmail(to, subject, html) {
   return info;
 }
 
-module.exports = { sendEmail, transporter };
+module.exports = {sendEmail, transporter};
 ```
 
 **Testing email sending:**
+
 ```javascript
 // test-email.js
-const { sendEmail } = require('./mail');
+const {sendEmail} = require('./mail');
 
 sendEmail('user@example.com', 'Test Email', '<h1>Hello!</h1><p>This is a test.</p>')
   .then(() => console.log('Email sent successfully!'))
@@ -3690,8 +3861,9 @@ docker compose exec nodejs node test-email.js
 For TypeScript Express applications using Nodemailer.
 
 **src/config/mail.ts:**
+
 ```typescript
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer, {Transporter} from 'nodemailer';
 
 interface MailConfig {
   host: string;
@@ -3728,6 +3900,7 @@ export async function sendMail(
 NestJS with the @nestjs-modules/mailer package.
 
 **compose.yml:**
+
 ```yaml
 services:
   nestjs:
@@ -3757,10 +3930,11 @@ networks:
 ```
 
 **app.module.ts:**
+
 ```typescript
-import { Module } from '@nestjs/common';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import {Module} from '@nestjs/common';
+import {MailerModule} from '@nestjs-modules/mailer';
+import {ConfigModule, ConfigService} from '@nestjs/config';
 
 @Module({
   imports: [
@@ -3781,7 +3955,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     }),
   ],
 })
-export class AppModule {}
+export class AppModule {
+}
 ```
 
 ---
@@ -3791,6 +3966,7 @@ export class AppModule {}
 FastAPI applications using fastapi-mail or aiosmtplib.
 
 **compose.yml:**
+
 ```yaml
 services:
   fastapi:
@@ -3820,6 +3996,7 @@ networks:
 ```
 
 **Using fastapi-mail:**
+
 ```python
 import os
 from fastapi import FastAPI
@@ -3854,6 +4031,7 @@ async def send_email(email: str, subject: str, body: str):
 ```
 
 **Using aiosmtplib (lightweight alternative):**
+
 ```python
 import os
 import aiosmtplib
@@ -3881,6 +4059,7 @@ async def send_email(to: str, subject: str, body: str):
 Flask applications using Flask-Mail.
 
 **compose.yml:**
+
 ```yaml
 services:
   flask:
@@ -3912,6 +4091,7 @@ networks:
 ```
 
 **app.py:**
+
 ```python
 import os
 from flask import Flask
@@ -3948,6 +4128,7 @@ def send_test_email():
 Go applications using the standard net/smtp package.
 
 **compose.yml:**
+
 ```yaml
 services:
   go-app:
@@ -3974,6 +4155,7 @@ networks:
 ```
 
 **mail/mail.go:**
+
 ```go
 package mail
 
@@ -4010,6 +4192,7 @@ func SendEmail(to, subject, body string) error {
 ```
 
 **Using with gomail (for HTML emails):**
+
 ```go
 package mail
 
@@ -4054,6 +4237,7 @@ func SendHTMLEmail(to, subject, htmlBody string) error {
 WordPress uses PHPMailer and can be configured to use Mailpit.
 
 **compose.yml:**
+
 ```yaml
 services:
   wordpress:
@@ -4082,6 +4266,7 @@ networks:
 ```
 
 **smtp-config.php (must-use plugin):**
+
 ```php
 <?php
 /**
@@ -4107,14 +4292,15 @@ Mailpit provides a REST API for automated email testing in CI/CD pipelines.
 
 **API Endpoints:**
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/messages` | GET | List all messages |
-| `/api/v1/messages/{id}` | GET | Get message details |
-| `/api/v1/messages/{id}/raw` | GET | Get raw message content |
-| `/api/v1/messages` | DELETE | Delete all messages |
+| Endpoint                    | Method | Description             |
+|-----------------------------|--------|-------------------------|
+| `/api/v1/messages`          | GET    | List all messages       |
+| `/api/v1/messages/{id}`     | GET    | Get message details     |
+| `/api/v1/messages/{id}/raw` | GET    | Get raw message content |
+| `/api/v1/messages`          | DELETE | Delete all messages     |
 
 **Example: Testing with curl:**
+
 ```bash
 # List all captured emails
 curl -sk https://mailpit.docker.localhost/api/v1/messages | jq
@@ -4127,32 +4313,33 @@ curl -sk -X DELETE https://mailpit.docker.localhost/api/v1/messages
 ```
 
 **Example: Automated testing in JavaScript (Jest):**
+
 ```javascript
 const axios = require('axios');
 
 describe('Email functionality', () => {
-   const https = require('https');
-   const axios = require('axios');
+  const https = require('https');
+  const axios = require('axios');
 
-   const mailpitUrl = 'https://mailpit.docker.localhost';
+  const mailpitUrl = 'https://mailpit.docker.localhost';
 
-   const agent = new https.Agent({
-      rejectUnauthorized: false
-   });
+  const agent = new https.Agent({
+    rejectUnauthorized: false
+  });
 
-   const mailpitApi = axios.create({
-      baseURL: mailpitUrl,
-      httpsAgent: agent
-   });
+  const mailpitApi = axios.create({
+    baseURL: mailpitUrl,
+    httpsAgent: agent
+  });
 
-   describe('Email functionality', () => {
-      beforeEach(async () => {
-         // Clear all emails before each test
-         await mailpitApi.delete('/api/v1/messages');
-      });
+  describe('Email functionality', () => {
+    beforeEach(async () => {
+      // Clear all emails before each test
+      await mailpitApi.delete('/api/v1/messages');
+    });
 
-      // ... rest of the test
-   });
+    // ... rest of the test
+  });
 
   it('should send welcome email on user registration', async () => {
     // Trigger your application to send an email
@@ -4176,6 +4363,7 @@ describe('Email functionality', () => {
 ```
 
 **Example: Automated testing in Python (pytest):**
+
 ```python
 import pytest
 import requests
@@ -4219,58 +4407,66 @@ def test_password_reset_email():
 
 #### Quick Reference: Framework Configuration Summary
 
-| Framework | Environment Variables | Configuration File |
-|-----------|----------------------|-------------------|
-| **Laravel** | `MAIL_HOST=mailpit`, `MAIL_PORT=1025` | `.env` |
-| **Symfony** | `MAILER_DSN=smtp://mailpit:1025` | `.env` |
-| **Django** | `EMAIL_HOST=mailpit`, `EMAIL_PORT=1025` | `settings.py` |
-| **Rails** | `SMTP_ADDRESS=mailpit`, `SMTP_PORT=1025` | `config/environments/development.rb` |
-| **Node.js** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | Application config |
-| **FastAPI** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | `ConnectionConfig` |
-| **Flask** | `MAIL_SERVER=mailpit`, `MAIL_PORT=1025` | `app.config` |
-| **Go** | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | `os.Getenv()` |
-| **WordPress** | N/A (plugin) | `smtp-config.php` |
+| Framework     | Environment Variables                    | Configuration File                   |
+|---------------|------------------------------------------|--------------------------------------|
+| **Laravel**   | `MAIL_HOST=mailpit`, `MAIL_PORT=1025`    | `.env`                               |
+| **Symfony**   | `MAILER_DSN=smtp://mailpit:1025`         | `.env`                               |
+| **Django**    | `EMAIL_HOST=mailpit`, `EMAIL_PORT=1025`  | `settings.py`                        |
+| **Rails**     | `SMTP_ADDRESS=mailpit`, `SMTP_PORT=1025` | `config/environments/development.rb` |
+| **Node.js**   | `SMTP_HOST=mailpit`, `SMTP_PORT=1025`    | Application config                   |
+| **FastAPI**   | `SMTP_HOST=mailpit`, `SMTP_PORT=1025`    | `ConnectionConfig`                   |
+| **Flask**     | `MAIL_SERVER=mailpit`, `MAIL_PORT=1025`  | `app.config`                         |
+| **Go**        | `SMTP_HOST=mailpit`, `SMTP_PORT=1025`    | `os.Getenv()`                        |
+| **WordPress** | N/A (plugin)                             | `smtp-config.php`                    |
 
 **Important notes:**
 
 1. **Network requirement**: Your services **must** be on the `traefik-proxy` network to access Mailpit.
 
 2. **Connection strings**: Use container name as hostname:
-   - SMTP: `mailpit:1025`
-   - Web UI: `https://mailpit.docker.localhost`
-   - API: `https://mailpit.docker.localhost/api/v1/`
+    - SMTP: `mailpit:1025`
+    - Web UI: `https://mailpit.docker.localhost`
+    - API: `https://mailpit.docker.localhost/api/v1/`
 
 3. **No authentication**: Mailpit doesn't require SMTP authentication for local development.
 
 4. **No encryption**: Disable TLS/SSL when connecting to Mailpit (port 1025).
 
-5. **Viewing emails**: All captured emails are visible at [https://mailpit.docker.localhost](https://mailpit.docker.localhost).
+5. **Viewing emails**: All captured emails are visible
+   at [https://mailpit.docker.localhost](https://mailpit.docker.localhost).
 
-6. **Data persistence**: By default, Mailpit stores emails in memory. They are cleared when the container restarts. For persistence, see Mailpit's documentation on database storage.
+6. **Data persistence**: By default, Mailpit stores emails in memory. They are cleared when the container restarts. For
+   persistence, see Mailpit's documentation on database storage.
 
-7. **Multiple projects**: All projects share the same Mailpit instance. Emails from all projects appear in the same inbox.
+7. **Multiple projects**: All projects share the same Mailpit instance. Emails from all projects appear in the same
+   inbox.
 
-8. **Production safety**: Mailpit only runs in your development environment. In production, configure your real email service (SendGrid, Mailgun, SES, etc.).
+8. **Production safety**: Mailpit only runs in your development environment. In production, configure your real email
+   service (SendGrid, Mailgun, SES, etc.).
 
 ---
 
 ### Custom Domain Patterns
 
-While `*.docker.localhost` is convenient for local development, you may want to use custom domain patterns for various reasons: better mimicking production URLs, organizing projects by client, or testing specific domain behaviors.
+While `*.docker.localhost` is convenient for local development, you may want to use custom domain patterns for various
+reasons: better mimicking production URLs, organizing projects by client, or testing specific domain behaviors.
 
 **Supported patterns:**
+
 - Standard subdomain: `myapp.docker.localhost`
 - Multi-level subdomain: `admin.myapp.docker.localhost`
 - Client-specific domains: `client1.docker.localhost`, `client2.docker.localhost`
 - Environment-based: `dev.myapp.docker.localhost`, `staging.myapp.docker.localhost`
 
-**Important**: All custom domains must end with `.docker.localhost` to match the wildcard SSL certificate (`*.docker.localhost`).
+**Important**: All custom domains must end with `.docker.localhost` to match the wildcard SSL certificate (
+`*.docker.localhost`).
 
 **Scenario 1: Multi-environment setup**
 
 Run dev, staging, and production-like environments locally with different domains.
 
 **compose.yml:**
+
 ```yaml
 services:
   app-dev:
@@ -4324,6 +4520,7 @@ networks:
 ```
 
 **Access:**
+
 - Development: `https://dev.myapp.docker.localhost`
 - Staging: `https://staging.myapp.docker.localhost`
 - Production-like: `https://prod.myapp.docker.localhost`
@@ -4333,6 +4530,7 @@ networks:
 Host multiple client instances with separate domains.
 
 **compose.yml:**
+
 ```yaml
 services:
   app-client1:
@@ -4371,6 +4569,7 @@ networks:
 ```
 
 **Access:**
+
 - Client 1: `https://client1.docker.localhost`
 - Client 2: `https://client2.docker.localhost`
 
@@ -4379,13 +4578,14 @@ networks:
 Separate public and admin interfaces on different subdomains.
 
 **compose.yml:**
+
 ```yaml
 services:
   public-app:
     image: myapp:latest
     container_name: myapp-public
     restart: unless-stopped
-    command: ["npm", "run", "start:public"]
+    command: [ "npm", "run", "start:public" ]
     environment:
       - APP_MODE=public
     networks:
@@ -4400,7 +4600,7 @@ services:
     image: myapp:latest
     container_name: myapp-admin
     restart: unless-stopped
-    command: ["npm", "run", "start:admin"]
+    command: [ "npm", "run", "start:admin" ]
     environment:
       - APP_MODE=admin
     networks:
@@ -4417,15 +4617,16 @@ networks:
 ```
 
 **Access:**
+
 - Public site: `https://myapp.docker.localhost`
 - Admin panel: `https://admin.myapp.docker.localhost`
 
 **Domain naming best practices:**
 
 1. **Keep it organized**:
-   - Project-based: `projectname.docker.localhost`
-   - Feature-based: `api.projectname.docker.localhost`, `admin.projectname.docker.localhost`
-   - Environment-based: `dev.projectname.docker.localhost`
+    - Project-based: `projectname.docker.localhost`
+    - Feature-based: `api.projectname.docker.localhost`, `admin.projectname.docker.localhost`
+    - Environment-based: `dev.projectname.docker.localhost`
 
 2. **Use consistent patterns**:
    ```
@@ -4461,17 +4662,20 @@ networks:
 **Troubleshooting custom domains:**
 
 **Issue: Certificate warning**
+
 - **Cause**: Domain doesn't match wildcard pattern `*.docker.localhost`
 - **Solution**: Ensure domain ends with `.docker.localhost`
 - **Invalid**: `myapp.local`, `myapp.test`
 - **Valid**: `myapp.docker.localhost`, `admin.myapp.docker.localhost`
 
 **Issue: Domain not resolving**
+
 - **Check Traefik dashboard**: `https://traefik.docker.localhost`
 - **Verify router rule**: Look for your router in the HTTP section
 - **Check service health**: Ensure container is healthy and accessible
 
 **Issue: Wrong service responding**
+
 - **Cause**: Overlapping router rules
 - **Solution**: Use unique, specific domain patterns
 - **Check rule priority**: More specific rules should have higher priority
@@ -4480,9 +4684,11 @@ networks:
 
 ### Path-Based Routing
 
-Path-based routing directs requests to different services based on the URL path rather than the domain. This is useful for microservices architectures where you want a single domain with multiple backend services.
+Path-based routing directs requests to different services based on the URL path rather than the domain. This is useful
+for microservices architectures where you want a single domain with multiple backend services.
 
 **Use case:** Single domain (`app.docker.localhost`) routing to different services:
+
 - `/` → Frontend
 - `/api` → Backend API
 - `/admin` → Admin panel
@@ -4491,6 +4697,7 @@ Path-based routing directs requests to different services based on the URL path 
 **Scenario: Microservices application with path-based routing**
 
 **compose.yml:**
+
 ```yaml
 services:
   frontend:
@@ -4575,37 +4782,39 @@ networks:
 **How it works:**
 
 1. **Priority system**: Higher priority rules are evaluated first
-   - Specific paths (`/api`, `/admin`, `/docs`): `priority=10`
-   - Root path (`/`): `priority=1`
-   - This ensures `/api` matches before `/` (which matches everything)
+    - Specific paths (`/api`, `/admin`, `/docs`): `priority=10`
+    - Root path (`/`): `priority=1`
+    - This ensures `/api` matches before `/` (which matches everything)
 
 2. **Path matching**: `PathPrefix()` matches URL paths starting with the specified prefix
-   - `PathPrefix(/api)` matches: `/api`, `/api/users`, `/api/products/123`
-   - `PathPrefix(/)` matches: Everything (catch-all)
+    - `PathPrefix(/api)` matches: `/api`, `/api/users`, `/api/products/123`
+    - `PathPrefix(/)` matches: Everything (catch-all)
 
 3. **Middleware - StripPrefix**: Removes the path prefix before forwarding
-   - Request: `https://app.docker.localhost/api/users`
-   - Traefik forwards to service: `http://api:4000/users` (without `/api`)
-   - Service sees: `GET /users` (not `GET /api/users`)
+    - Request: `https://app.docker.localhost/api/users`
+    - Traefik forwards to service: `http://api:4000/users` (without `/api`)
+    - Service sees: `GET /users` (not `GET /api/users`)
 
 **Access URLs:**
+
 - Frontend: `https://app.docker.localhost/`
 - API: `https://app.docker.localhost/api/users`
 - Admin: `https://app.docker.localhost/admin/dashboard`
 - Docs: `https://app.docker.localhost/docs/getting-started`
 
 **Example API service (api/server.js):**
+
 ```javascript
 const express = require('express');
 const app = express();
 
 // Note: No /api prefix needed in routes (StripPrefix removes it)
 app.get('/users', (req, res) => {
-  res.json({ users: ['Alice', 'Bob'] });
+  res.json({users: ['Alice', 'Bob']});
 });
 
 app.get('/products', (req, res) => {
-  res.json({ products: ['Product 1', 'Product 2'] });
+  res.json({products: ['Product 1', 'Product 2']});
 });
 
 app.listen(4000, () => {
@@ -4628,32 +4837,37 @@ labels:
 ```
 
 Then in your service:
+
 ```javascript
 // Service handles full path
 app.get('/api/users', (req, res) => {
-  res.json({ users: ['Alice', 'Bob'] });
+  res.json({users: ['Alice', 'Bob']});
 });
 ```
 
 **Advanced path patterns:**
 
 **1. Exact path match:**
+
 ```yaml
 - "traefik.http.routers.api-health.rule=Host(`app.docker.localhost`) && Path(`/api/health`)"
 ```
 
 **2. Path with regex:**
+
 ```yaml
 - "traefik.http.routers.api-v1.rule=Host(`app.docker.localhost`) && PathPrefix(`/api/v1`)"
 - "traefik.http.routers.api-v2.rule=Host(`app.docker.localhost`) && PathPrefix(`/api/v2`)"
 ```
 
 **3. Multiple path prefixes:**
+
 ```yaml
 - "traefik.http.routers.static.rule=Host(`app.docker.localhost`) && (PathPrefix(`/static`) || PathPrefix(`/media`))"
 ```
 
 **4. Combining Host and Path with priority:**
+
 ```yaml
 services:
   service-a:
@@ -4702,14 +4916,15 @@ services:
    ```
 
 4. **Consider using subdomains instead**: For clear service separation, subdomains are often cleaner:
-   - Path-based: `app.docker.localhost/api`, `app.docker.localhost/admin`
-   - Subdomain-based: `api.app.docker.localhost`, `admin.app.docker.localhost`
+    - Path-based: `app.docker.localhost/api`, `app.docker.localhost/admin`
+    - Subdomain-based: `api.app.docker.localhost`, `admin.app.docker.localhost`
 
 ---
 
 ### Multiple Domains for One Service
 
 Sometimes you need a single service to be accessible via multiple domains. This is useful for:
+
 - Supporting multiple brand domains pointing to the same application
 - Providing both a primary and fallback domain
 - Testing domain-specific behavior in the same service
@@ -4720,6 +4935,7 @@ Sometimes you need a single service to be accessible via multiple domains. This 
 **Use case:** SaaS application accessible via multiple brand domains.
 
 **compose.yml:**
+
 ```yaml
 services:
   web:
@@ -4729,7 +4945,7 @@ services:
     networks:
       - traefik-proxy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -4747,6 +4963,7 @@ networks:
 ```
 
 **Access:**
+
 - `https://brand1.docker.localhost` → Same application
 - `https://brand2.docker.localhost` → Same application
 - `https://brand3.docker.localhost` → Same application
@@ -4754,6 +4971,7 @@ networks:
 **Application code** can detect which domain was used:
 
 **Express.js example:**
+
 ```javascript
 const express = require('express');
 const app = express();
@@ -4797,6 +5015,7 @@ app.listen(8000);
 **Use case:** Provide a short primary domain and a descriptive fallback.
 
 **compose.yml:**
+
 ```yaml
 services:
   web:
@@ -4818,6 +5037,7 @@ networks:
 ```
 
 **Access:**
+
 - Primary: `https://app.docker.localhost`
 - Fallback: `https://myapplication.docker.localhost`
 
@@ -4826,6 +5046,7 @@ networks:
 **Use case:** Route different domain+path combinations to the same service with custom handling.
 
 **compose.yml:**
+
 ```yaml
 services:
   web:
@@ -4864,6 +5085,7 @@ networks:
 ```
 
 **Access:**
+
 - `https://brand1.docker.localhost/` → Service
 - `https://brand2.docker.localhost/` → Same service
 - `https://app.docker.localhost/brand3/` → Same service (path stripped)
@@ -4875,6 +5097,7 @@ networks:
 **Note:** Traefik supports regex rules for advanced matching.
 
 **compose.yml:**
+
 ```yaml
 services:
   web:
@@ -4896,11 +5119,13 @@ networks:
 ```
 
 **Matches:**
+
 - `https://client1.example.docker.localhost`
 - `https://client2.example.docker.localhost`
 - `https://any.example.docker.localhost`
 
 **Application can extract subdomain:**
+
 ```javascript
 app.get('/', (req, res) => {
   const hostname = req.hostname;
@@ -4964,6 +5189,7 @@ app.get('/', (req, res) => {
 **Verification:**
 
 Check Traefik dashboard to see all routers:
+
 1. Open `https://traefik.docker.localhost`
 2. Navigate to **HTTP** → **Routers**
 3. Find your router and verify all domains are listed in the **Rule** column
@@ -4971,11 +5197,13 @@ Check Traefik dashboard to see all routers:
 **Troubleshooting:**
 
 **Issue: One domain works, others don't**
+
 - **Check rule syntax**: Ensure proper OR operators (`||`)
 - **Verify certificate coverage**: All domains must end with `.docker.localhost`
 - **Check Traefik logs**: `docker logs traefik`
 
 **Issue: Domains conflict with other services**
+
 - **Use unique router names**: Each router must have a unique name
 - **Check priorities**: Ensure no overlapping rules with different priorities
 
@@ -4997,15 +5225,131 @@ Check Traefik dashboard to see all routers:
 
 ### Middleware Configuration
 
-**TODO:** Document common Traefik middleware (auth, rate limiting, etc.)
+Traefik middleware allows you to modify requests and responses as they pass through the proxy. This proxy includes
+pre-configured security headers middleware to protect against common web vulnerabilities.
+
+#### Security Headers Middleware
+
+The proxy includes a **security headers middleware** (`security-headers`) that automatically applies essential security
+headers to HTTP responses. These headers protect against common attacks like clickjacking, MIME-type sniffing, and
+protocol downgrade attacks.
+
+**Included Headers:**
+
+| Header                      | Value                                                        | Purpose                                                       |
+|-----------------------------|--------------------------------------------------------------|---------------------------------------------------------------|
+| `X-Frame-Options`           | `DENY`                                                       | Prevents clickjacking by blocking iframe embedding            |
+| `X-Content-Type-Options`    | `nosniff`                                                    | Prevents MIME-type sniffing attacks                           |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                            | Controls referrer information sent with requests              |
+| `X-XSS-Protection`          | `0`                                                          | Disables browser XSS protection (legacy; CSP is used instead) |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                        | Forces HTTPS for 1 year on all subdomains                     |
+| `Content-Security-Policy`   | `default-src 'self'; ...; object-src 'none'; base-uri 'self'` | Restricts resource loading to prevent XSS and injection attacks |
+
+**Applying to Your Services:**
+
+To apply security headers to your custom services, add the middleware to your router labels:
+
+```yaml
+services:
+  app:
+    image: your-app:latest
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.docker.localhost`)"
+      - "traefik.http.routers.app.tls=true"
+      # Apply security headers middleware
+      - "traefik.http.routers.app.middlewares=security-headers@file"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Key Points:**
+
+- The `@file` suffix tells Traefik to use middleware defined in the dynamic configuration file (`config/dynamic.yml`)
+- Security headers are applied automatically to the Traefik dashboard
+- You can chain multiple middlewares by separating them with commas:
+  `middlewares=security-headers@file,other-middleware`
+- The CSP includes `object-src 'none'` (prevents plugin embedding like Flash) and `base-uri 'self'` (prevents base URL hijacking attacks)
+
+**Verification:**
+
+After starting your service, verify the headers are present:
+
+```bash
+curl -I https://app.docker.localhost 2>/dev/null | grep -E '(X-Frame-Options|X-Content-Type-Options|Strict-Transport-Security)'
+```
+
+**Expected output:**
+
+```
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+**Customizing Security Headers:**
+
+If you need different security header values for a specific service, you can define a custom middleware in your
+project's compose file:
+
+```yaml
+services:
+  app:
+    image: your-app:latest
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.docker.localhost`)"
+      - "traefik.http.routers.app.tls=true"
+      # Define custom middleware inline
+      - "traefik.http.middlewares.custom-headers.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN"
+      - "traefik.http.middlewares.custom-headers.headers.customResponseHeaders.X-Content-Type-Options=nosniff"
+      # Apply custom middleware
+      - "traefik.http.routers.app.middlewares=custom-headers"
+
+networks:
+  traefik-proxy:
+    external: true
+```
+
+**Common Use Cases:**
+
+1. **Allow iframe embedding (for apps with widgets):**
+   ```yaml
+   - "traefik.http.middlewares.app-headers.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN"
+   - "traefik.http.routers.app.middlewares=app-headers"
+   ```
+
+2. **Custom Content Security Policy (for specific frontend frameworks):**
+   ```yaml
+   - "traefik.http.middlewares.app-csp.headers.customResponseHeaders.Content-Security-Policy=default-src 'self' https://cdn.example.com"
+   - "traefik.http.routers.app.middlewares=app-csp"
+   ```
+
+3. **Combine security headers with other middleware:**
+   ```yaml
+   - "traefik.http.routers.app.middlewares=security-headers@file,compress,ratelimit"
+   ```
+
+**For More Information:**
+
+- Traefik Headers Middleware: https://doc.traefik.io/traefik/middlewares/http/headers/
+- OWASP Secure Headers Project: https://owasp.org/www-project-secure-headers/
 
 ## Troubleshooting
 
-This section covers common integration issues and their solutions. For each problem, we provide diagnostic steps and fixes.
+This section covers common integration issues and their solutions. For each problem, we provide diagnostic steps and
+fixes.
 
 ### Service Not Appearing in Traefik Dashboard
 
 **Symptoms:**
+
 - Your service is running (`docker compose ps` shows "Up")
 - Traefik dashboard shows no router for your service
 - Accessing your domain returns "404 page not found"
@@ -5020,7 +5364,8 @@ This section covers common integration issues and their solutions. For each prob
 
    **Expected output:** You should see labels like `traefik.enable`, `traefik.http.routers.*`, etc.
 
-   **If labels are missing:** Check your `compose.yml` syntax. Labels must be under the service definition, not at the root level.
+   **If labels are missing:** Check your `compose.yml` syntax. Labels must be under the service definition, not at the
+   root level.
 
 2. **Check if service is on the traefik-proxy network:**
 
@@ -5053,7 +5398,8 @@ This section covers common integration issues and their solutions. For each prob
 **Common Causes:**
 
 - **Label typos:** Ensure label names are exactly as shown (e.g., `traefik.enable`, not `traefik.enabled`)
-- **Indentation errors:** YAML is sensitive to indentation. Labels must be at the same level as `image`, `networks`, etc.
+- **Indentation errors:** YAML is sensitive to indentation. Labels must be at the same level as `image`, `networks`,
+  etc.
 - **Service not connected to network:** Missing `networks: - traefik-proxy` in service definition
 - **External network not declared:** Missing `networks: traefik-proxy: external: true` at compose file root
 
@@ -5062,6 +5408,7 @@ This section covers common integration issues and their solutions. For each prob
 ### 502 Bad Gateway Errors
 
 **Symptoms:**
+
 - Service appears in Traefik dashboard
 - Accessing the domain returns "502 Bad Gateway"
 - Browser shows "upstream connect error or disconnect/reset before headers"
@@ -5130,6 +5477,7 @@ This section covers common integration issues and their solutions. For each prob
 ### Certificate Warnings in Browser
 
 **Symptoms:**
+
 - Browser shows "Your connection is not private" or "NET::ERR_CERT_AUTHORITY_INVALID"
 - Certificate error for `*.docker.localhost` domains
 - HTTPS connection marked as insecure
@@ -5162,14 +5510,14 @@ This section covers common integration issues and their solutions. For each prob
 
 3. **Restart your browser completely:**
 
-   - Close all browser windows and tabs
-   - On Linux, ensure all browser processes are stopped:
-     ```bash
-     pkill -f firefox
-     # or
-     pkill -f chrome
-     ```
-   - Reopen the browser and test again
+    - Close all browser windows and tabs
+    - On Linux, ensure all browser processes are stopped:
+      ```bash
+      pkill -f firefox
+      # or
+      pkill -f chrome
+      ```
+    - Reopen the browser and test again
 
 4. **Verify certificate files exist and are readable:**
 
@@ -5195,15 +5543,18 @@ This section covers common integration issues and their solutions. For each prob
 
 **Special Cases:**
 
-- **Firefox:** May require additional steps. Go to `about:preferences#privacy`, scroll to "Certificates", click "View Certificates", then "Authorities" tab. Import the mkcert CA manually if needed.
+- **Firefox:** May require additional steps. Go to `about:preferences#privacy`, scroll to "Certificates", click "View
+  Certificates", then "Authorities" tab. Import the mkcert CA manually if needed.
 - **Chrome/Chromium:** Uses system trust store. Ensure `libnss3-tools` is installed.
-- **Private/Incognito mode:** Some browsers don't trust local CAs in private mode. Use normal browsing mode for development.
+- **Private/Incognito mode:** Some browsers don't trust local CAs in private mode. Use normal browsing mode for
+  development.
 
 ---
 
 ### Network traefik-proxy Not Found
 
 **Symptoms:**
+
 - `docker compose up` fails with error: `network traefik-proxy declared as external, but could not be found`
 - Container won't start due to missing network
 
@@ -5239,7 +5590,8 @@ This section covers common integration issues and their solutions. For each prob
 
 **Prevention:**
 
-This network is created automatically by the `setup.sh` script. If you performed manual installation, ensure this step is included in your setup process.
+This network is created automatically by the `setup.sh` script. If you performed manual installation, ensure this step
+is included in your setup process.
 
 **Note:** This network persists even after stopping containers. You only need to create it once per Docker host.
 
@@ -5248,6 +5600,7 @@ This network is created automatically by the `setup.sh` script. If you performed
 ### Port Conflicts (80/443 Already in Use)
 
 **Symptoms:**
+
 - Traefik container fails to start
 - Error message: `Bind for 0.0.0.0:80 failed: port is already allocated`
 - Docker logs show port binding errors
@@ -5268,10 +5621,10 @@ This network is created automatically by the `setup.sh` script. If you performed
    ```
 
    **Common culprits:**
-   - Apache (`apache2`, `httpd`)
-   - Nginx
-   - Another Traefik instance
-   - Other Docker containers with port mappings
+    - Apache (`apache2`, `httpd`)
+    - Nginx
+    - Another Traefik instance
+    - Other Docker containers with port mappings
 
 2. **Check for other Traefik instances:**
 
@@ -5307,7 +5660,8 @@ This network is created automatically by the `setup.sh` script. If you performed
 
 - **Another Docker container:** Stop the conflicting container or remove its port mapping (it can use Traefik instead!)
 
-- **Multiple Traefik instances:** Keep only one Traefik instance. This proxy is designed to be a single shared reverse proxy for all projects.
+- **Multiple Traefik instances:** Keep only one Traefik instance. This proxy is designed to be a single shared reverse
+  proxy for all projects.
 
 - **Port forwarding rules:** Check if you have custom iptables rules or Docker networks with conflicting port mappings
 
@@ -5393,11 +5747,13 @@ services:
 ```
 
 Then restart Traefik:
+
 ```bash
 docker compose restart traefik
 ```
 
-**Warning:** Debug logging is very verbose. Only enable temporarily for troubleshooting, then revert to `INFO` or `ERROR` level.
+**Warning:** Debug logging is very verbose. Only enable temporarily for troubleshooting, then revert to `INFO` or
+`ERROR` level.
 
 ---
 
@@ -5448,6 +5804,7 @@ When facing integration issues, run through this checklist:
 **Detailed explanation:**
 
 When a service is connected to the `traefik-proxy` network and has proper Traefik labels:
+
 - ❌ **Don't use `ports:`** - Traefik handles all routing internally
 - ✅ **Use labels** - Define routing rules via Traefik labels
 - ✅ **Access via domain** - Use `https://your-app.docker.localhost`
@@ -5510,6 +5867,7 @@ services:
    ```
 
 **Why avoid ports with Traefik?**
+
 - **Port conflicts:** Multiple projects can't use the same port
 - **No HTTPS:** Direct port access bypasses SSL certificates
 - **Manual management:** You lose automatic routing benefits
@@ -5530,6 +5888,7 @@ labels:
 ```
 
 **Advantages:**
+
 - ✅ No additional DNS configuration needed
 - ✅ Works out of the box on all platforms
 - ✅ Existing SSL certificate covers `*.localhost` (if configured)
@@ -5551,17 +5910,20 @@ docker compose restart traefik
 Use completely custom domains like `my-app.local` or `project.dev`:
 
 **Requirements:**
+
 1. **DNS Resolution:** Add entries to `/etc/hosts` or use dnsmasq
 2. **SSL Certificate:** Generate certificates for your custom domain
 3. **Traefik Configuration:** Update labels accordingly
 
 **Example `/etc/hosts` entry:**
+
 ```
 127.0.0.1 my-app.local
 127.0.0.1 api.my-app.local
 ```
 
 **Generate custom certificate:**
+
 ```bash
 mkcert -key-file certs/custom-key.pem \
   -cert-file certs/custom-cert.pem \
@@ -5569,6 +5931,7 @@ mkcert -key-file certs/custom-key.pem \
 ```
 
 **Update Traefik dynamic config** (`config/dynamic.yml`):
+
 ```yaml
 tls:
   certificates:
@@ -5579,6 +5942,7 @@ tls:
 ```
 
 **Use in your project:**
+
 ```yaml
 labels:
   - "traefik.http.routers.app.rule=Host(`my-app.local`)"
@@ -5586,6 +5950,7 @@ labels:
 ```
 
 **Limitations:**
+
 - ❌ Requires manual `/etc/hosts` management per domain
 - ❌ More complex certificate management
 - ❌ Team members need the same setup
@@ -5601,11 +5966,13 @@ labels:
 #### Performance Characteristics
 
 **Latency:**
+
 - **Direct access (localhost:8080):** ~0.5ms
 - **Via Traefik proxy:** ~2-5ms
 - **Overhead:** 1.5-4.5ms per request
 
 **Throughput:**
+
 - Traefik is a production-grade proxy handling 10k+ req/sec
 - Local development rarely exceeds 100 req/sec
 - **No noticeable impact** in typical development scenarios
@@ -5619,6 +5986,7 @@ labels:
 #### Performance Benefits
 
 Despite minimal overhead, the proxy provides:
+
 - ✅ **Faster project switching** - No port reconfiguration
 - ✅ **Parallel development** - Run multiple projects simultaneously
 - ✅ **Caching (if configured)** - Can reduce backend load
@@ -5637,18 +6005,21 @@ ab -n 1000 -c 10 https://my-app.docker.localhost/
 ```
 
 **Typical results:**
+
 - Direct: ~950 req/sec
 - Proxied: ~920 req/sec (~3% difference)
 
 #### When Performance Matters
 
 **Proxy overhead is negligible** for:
+
 - Web application development
 - API development
 - Frontend development
 - Database-backed applications
 
 **Consider direct access** for:
+
 - High-frequency API load testing (>5000 req/sec)
 - Profiling/benchmarking scenarios
 - WebSocket-heavy applications (though Traefik handles these well)
@@ -5664,6 +6035,7 @@ ab -n 1000 -c 10 https://my-app.docker.localhost/
 #### Why You Shouldn't
 
 Running multiple Traefik instances creates:
+
 - ❌ **Port conflicts** - Both need ports 80/443
 - ❌ **Network confusion** - Which proxy handles which service?
 - ❌ **Certificate management overhead** - Multiple CA setups
@@ -5672,6 +6044,7 @@ Running multiple Traefik instances creates:
 #### Valid Use Cases
 
 Multiple instances may be needed for:
+
 1. **Isolated environments** (e.g., work vs personal projects)
 2. **Testing different Traefik versions**
 3. **Separate network security boundaries**
@@ -5681,6 +6054,7 @@ Multiple instances may be needed for:
 If you must run multiple instances, configure them as follows:
 
 **Instance 1 (Primary - ports 80/443):**
+
 ```yaml
 # docker-compose.yml
 services:
@@ -5696,6 +6070,7 @@ networks:
 ```
 
 **Instance 2 (Secondary - different ports):**
+
 ```yaml
 # docker-compose-alt.yml
 services:
@@ -5710,16 +6085,18 @@ services:
     labels:
       - "traefik.http.routers.dashboard-alt.rule=Host(`traefik-alt.docker.localhost`)"
 networks:
-  traefik-proxy-alt:  # Different network name
+  traefik-proxy-alt: # Different network name
     external: true
 ```
 
 **Create the second network:**
+
 ```bash
 docker network create traefik-proxy-alt
 ```
 
 **Access secondary instance:**
+
 - HTTP: `http://localhost:8080` → Routes to secondary Traefik
 - HTTPS: `https://localhost:8443` → Routes to secondary Traefik
 - Must specify port in URL: `https://app.docker.localhost:8443`
@@ -5740,7 +6117,8 @@ labels:
   - "traefik.http.routers.test-app.priority=50"
 ```
 
-**Recommendation:** Use a single Traefik instance for all local projects. If you need isolation, use different **domains** (e.g., `work-project.docker.localhost` vs `personal-project.docker.localhost`), not multiple proxies.
+**Recommendation:** Use a single Traefik instance for all local projects. If you need isolation, use different **domains
+** (e.g., `work-project.docker.localhost` vs `personal-project.docker.localhost`), not multiple proxies.
 
 ---
 
@@ -5753,31 +6131,32 @@ labels:
 This setup includes development-focused configurations that are **not production-ready:**
 
 1. **⚠️ Self-signed certificates**
-   - mkcert generates locally-trusted CA
-   - Not trusted by public browsers/clients
-   - Only works on machines where CA is installed
+    - mkcert generates locally-trusted CA
+    - Not trusted by public browsers/clients
+    - Only works on machines where CA is installed
 
 2. **⚠️ Localhost-only domains**
-   - `.docker.localhost` only resolves locally
-   - No public DNS resolution
+    - `.docker.localhost` only resolves locally
+    - No public DNS resolution
 
 3. **⚠️ Docker socket exposure**
-   - Traefik has access to `/var/run/docker.sock`
-   - Security risk in multi-tenant environments
+    - Traefik has access to `/var/run/docker.sock`
+    - Security risk in multi-tenant environments
 
 4. **⚠️ Dashboard exposed**
-   - API dashboard is enabled without authentication
-   - Exposes routing configuration
+    - API dashboard is enabled without authentication
+    - Exposes routing configuration
 
 5. **⚠️ No high-availability setup**
-   - Single container (no redundancy)
-   - Not suitable for uptime requirements
+    - Single container (no redundancy)
+    - Not suitable for uptime requirements
 
 #### Production-Ready Alternatives
 
 For production deployments, use:
 
 **1. Traefik with Let's Encrypt:**
+
 ```yaml
 services:
   traefik:
@@ -5791,16 +6170,19 @@ services:
 ```
 
 **2. Cloud Load Balancers:**
+
 - AWS Application Load Balancer (ALB)
 - Google Cloud Load Balancing
 - Azure Application Gateway
 
 **3. Managed Reverse Proxies:**
+
 - Cloudflare (with origin certificates)
 - AWS CloudFront
 - Fastly
 
 **4. Enterprise Solutions:**
+
 - Nginx Ingress Controller (Kubernetes)
 - HAProxy
 - Istio Service Mesh
@@ -5817,9 +6199,11 @@ If you want to use Traefik in production, you need to:
 6. **✅ Add rate limiting and security middleware**
 7. **✅ Use Docker Swarm or Kubernetes for HA**
 
-**Reference:** See [Traefik's production documentation](https://doc.traefik.io/traefik/user-guides/docker-compose/acme-http/)
+**Reference:**
+See [Traefik's production documentation](https://doc.traefik.io/traefik/user-guides/docker-compose/acme-http/)
 
-**Final word:** Use this proxy to streamline your **local development workflow**. For production, design a proper infrastructure with public CAs, monitoring, and high availability.
+**Final word:** Use this proxy to streamline your **local development workflow**. For production, design a proper
+infrastructure with public CAs, monitoring, and high availability.
 
 ---
 
@@ -5829,37 +6213,43 @@ If you want to use Traefik in production, you need to:
 
 #### Platform Compatibility Matrix
 
-| Feature | Linux | macOS | Windows (WSL2) | Windows (Native) |
-|---------|-------|-------|----------------|------------------|
-| Automated setup.sh | ✅ | ✅ | ✅ | ⚠️ Manual |
-| mkcert auto-install | ✅ | ✅ | ✅ | ⚠️ Manual |
-| Traefik proxy | ✅ | ✅ | ✅ | ✅ |
-| HTTPS certificates | ✅ | ✅ | ✅ | ✅ |
+| Feature             | Linux | macOS | Windows (WSL2) | Windows (Native) |
+|---------------------|-------|-------|----------------|------------------|
+| Automated setup.sh  | ✅     | ✅     | ✅              | ⚠️ Manual        |
+| mkcert auto-install | ✅     | ✅     | ✅              | ⚠️ Manual        |
+| Traefik proxy       | ✅     | ✅     | ✅              | ✅                |
+| HTTPS certificates  | ✅     | ✅     | ✅              | ✅                |
 
 #### Setup Instructions by Platform
 
 **Linux (Ubuntu/Debian/Fedora/Arch):**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
+
 That's it! The script automatically detects your package manager and installs everything.
 
 **macOS:**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
+
 - If Homebrew is installed, the script uses it to install mkcert (preferred)
 - If Homebrew is not available, downloads mkcert binary directly
 - Certificates are automatically trusted in macOS Keychain
 - Requires Docker Desktop for Mac to be running
 
 **Windows WSL2 (Recommended):**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
+
 - Works in any WSL2 distribution (Ubuntu, Debian, etc.)
 - Automatically detects WSL2 environment
 - Certificates trusted in WSL2 browsers automatically
@@ -5872,34 +6262,38 @@ Manual setup required - follow the manual installation steps in the main README.
 #### Platform-Specific Notes
 
 **macOS:**
+
 - Docker Desktop must be installed and running before running setup.sh
 - Script checks for Docker Desktop availability and provides helpful error messages
 - Homebrew is preferred but not required
 
 **WSL2:**
+
 - After setup completes, additional instructions are displayed for trusting certificates in Windows browsers
 - Copy the mkcert root CA to Windows and import to "Trusted Root Certification Authorities"
 - Linux browsers (Firefox, Chrome in WSL2) trust certificates automatically
 
 **Cross-platform development:**
 If your team uses mixed platforms, everyone can now use the same setup.sh script!
+
 - ✅ All platforms use the same setup command
 - ✅ Script automatically detects platform and adjusts accordingly
 - ✅ Clear error messages if Docker or dependencies are missing
 
 #### Platform Recommendation
 
-| Scenario | Recommended Platform | Setup Experience |
-|----------|---------------------|------------------|
-| Linux development | Native Linux | ⭐⭐⭐⭐⭐ Best |
-| macOS required | Docker Desktop | ⭐⭐⭐⭐ Great |
-| Windows required | WSL2 + Docker Desktop | ⭐⭐⭐⭐ Great |
-| Native Windows | Manual setup | ⭐⭐⭐ Good |
+| Scenario          | Recommended Platform  | Setup Experience |
+|-------------------|-----------------------|------------------|
+| Linux development | Native Linux          | ⭐⭐⭐⭐⭐ Best       |
+| macOS required    | Docker Desktop        | ⭐⭐⭐⭐ Great       |
+| Windows required  | WSL2 + Docker Desktop | ⭐⭐⭐⭐ Great       |
+| Native Windows    | Manual setup          | ⭐⭐⭐ Good         |
 
 **Bottom line:** The proxy works on all platforms, and setup.sh now automates installation for Linux, macOS, and WSL2!
 
 ---
 
-**Have more questions?** Check the [Troubleshooting](#troubleshooting) section or refer to the [main README](../README.md) for additional resources.
+**Have more questions?** Check the [Troubleshooting](#troubleshooting) section or refer to
+the [main README](../README.md) for additional resources.
 
 *This guide is under active development. Sections marked with TODO will be completed in upcoming updates.*
