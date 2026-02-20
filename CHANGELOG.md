@@ -1,3 +1,15 @@
+## [Unreleased]
+
+### 🔧 Improvements
+- Pinned all Docker images to specific versions for reproducible builds and enhanced security:
+  - Traefik: `latest` → `v3.2`
+  - Redis: `redis:alpine` → `redis:8.6.0-alpine`
+  - MySQL: `mysql:8.0` → `mysql:8.0.45`
+  - PostgreSQL: `postgres:alpine` → `postgres:16.6-alpine`
+  - phpMyAdmin: `phpmyadmin/phpmyadmin` → `phpmyadmin/phpmyadmin:5.2`
+  - pgAdmin4: `dpage/pgadmin4` → `dpage/pgadmin4:9.11`
+  - Mailpit: `axllent/mailpit:latest` → `axllent/mailpit:v1.29.1`
+
 ## [1.1.0] - 2026-02-14
 
 ### 🚀 Added
