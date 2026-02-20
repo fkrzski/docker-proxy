@@ -8,7 +8,7 @@ x-logging: &default-logging
 
 services:
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     security_opt:
@@ -65,7 +65,7 @@ services:
       start_period: 40s
 
   mysql:
-    image: mysql:8.0.45
+    image: mysql:8.4.8
     container_name: mysql
     restart: unless-stopped
     profiles:
@@ -85,7 +85,7 @@ services:
       start_period: 40s
 
   postgres:
-    image: postgres:16.6-alpine
+    image: postgres:18.2-alpine
     container_name: postgres
     restart: unless-stopped
     profiles:
@@ -107,7 +107,7 @@ services:
       start_period: 40s
 
   pma:
-    image: phpmyadmin/phpmyadmin:5.2
+    image: phpmyadmin/phpmyadmin:5.2.3
     container_name: pma
     restart: unless-stopped
     profiles:
@@ -134,7 +134,7 @@ services:
       - "traefik.http.routers.pma.middlewares=security-headers@file"
 
   pgadmin:
-    image: dpage/pgadmin4:9.11
+    image: dpage/pgadmin4:9.12.0
     container_name: pgadmin
     restart: unless-stopped
     profiles:
