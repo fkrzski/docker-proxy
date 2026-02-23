@@ -23,10 +23,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install bats-core (Ubuntu)
+      - name: Install bats-core and parallel (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
+          sudo apt install -y parallel
           # Try to install from apt first, fall back to git installation
           if ! sudo apt install -y bats 2>/dev/null && ! sudo apt install -y bats-core 2>/dev/null; then
             # Install from source if package not available
@@ -35,10 +36,10 @@ jobs:
             sudo ./install.sh /usr/local
           fi
 
-      - name: Install bats-core (macOS)
+      - name: Install bats-core and parallel (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install bats-core
+          brew install bats-core parallel
 
       - name: Verify bats installation
         run: |
@@ -46,4 +47,4 @@ jobs:
 
       - name: Run all tests in parallel
         run: |
-          bats tests/*.bats
+          bats --jobs 4 tests/*.bats
