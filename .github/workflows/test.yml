@@ -46,4 +46,4 @@ jobs:
 
       - name: Run all tests in parallel
         run: |
-          bats --jobs 4 tests/*.bats
+          bats --jobs 2 tests/*.bats
