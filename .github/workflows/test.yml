@@ -11,14 +11,13 @@ on:
 
 jobs:
   test:
-    name: Test ${{ matrix.test-file }} on ${{ matrix.os }}
+    name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        test-file: [mkcert, os-detection, package-manager, setup]
 
     steps:
       - name: Checkout code
@@ -45,6 +44,6 @@ jobs:
         run: |
           bats --version
 
-      - name: Run ${{ matrix.test-file }} tests
+      - name: Run all tests in parallel
         run: |
-          bats tests/${{ matrix.test-file }}.bats
+          bats --jobs 4 tests/*.bats
