@@ -23,23 +23,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install bats-core and parallel (Ubuntu)
+      - name: Install bats-core
+        uses: bats-core/bats-action@4.0.0
+
+      - name: Install parallel (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt update
-          sudo apt install -y parallel
-          # Try to install from apt first, fall back to git installation
-          if ! sudo apt install -y bats 2>/dev/null && ! sudo apt install -y bats-core 2>/dev/null; then
-            # Install from source if package not available
-            git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
-            cd /tmp/bats-core
-            sudo ./install.sh /usr/local
-          fi
+          sudo apt-get update
+          sudo apt-get install -y parallel
 
-      - name: Install bats-core and parallel (macOS)
+      - name: Install parallel (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install bats-core parallel
+          brew install parallel
 
       - name: Verify bats installation
         run: |
