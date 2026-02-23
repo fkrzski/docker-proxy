@@ -25,6 +25,12 @@ jobs:
 
       - name: Install bats-core
         uses: bats-core/bats-action@4.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          support-path: "${{ github.workspace }}/tests/bats-support"
+          assert-path: "${{ github.workspace }}/tests/bats-assert"
+          detik-path: "${{ github.workspace }}/tests/bats-detik"
+          file-path: "${{ github.workspace }}/tests/bats-file"
 
       - name: Install parallel (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
