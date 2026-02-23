@@ -11,13 +11,14 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }}
+    name: Test ${{ matrix.test-file }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        test-file: [mkcert, os-detection, package-manager, setup]
 
     steps:
       - name: Checkout code
@@ -44,18 +45,6 @@ jobs:
         run: |
           bats --version
 
-      - name: Run mkcert tests
+      - name: Run ${{ matrix.test-file }} tests
         run: |
-          bats tests/mkcert.bats
-
-      - name: Run OS detection tests
-        run: |
-          bats tests/os-detection.bats
-
-      - name: Run package manager tests
-        run: |
-          bats tests/package-manager.bats
-
-      - name: Run setup flow tests
-        run: |
-          bats tests/setup.bats
+          bats tests/${{ matrix.test-file }}.bats
