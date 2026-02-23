@@ -46,7 +46,7 @@ services:
       - "traefik.http.routers.dashboard.rule=Host(`traefik.docker.localhost`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
-      - "traefik.http.routers.dashboard.middlewares=security-headers@file"
+      - "traefik.http.routers.dashboard.middlewares=security-headers@file,compress@file"
 
   redis:
     image: redis:8.6.0-alpine
@@ -131,7 +131,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.pma.rule=Host(`pma.docker.localhost`)"
       - "traefik.http.routers.pma.tls=true"
-      - "traefik.http.routers.pma.middlewares=security-headers@file"
+      - "traefik.http.routers.pma.middlewares=security-headers@file,compress@file"
 
   pgadmin:
     image: dpage/pgadmin4:9.12.0
@@ -160,7 +160,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.docker.localhost`)"
       - "traefik.http.routers.pgadmin.tls=true"
-      - "traefik.http.routers.pgadmin.middlewares=security-headers@file"
+      - "traefik.http.routers.pgadmin.middlewares=security-headers@file,compress@file"
 
   mailpit:
     image: axllent/mailpit:v1.29.1
@@ -183,7 +183,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.mailpit.rule=Host(`mailpit.docker.localhost`)"
       - "traefik.http.routers.mailpit.tls=true"
-      - "traefik.http.routers.mailpit.middlewares=security-headers@file"
+      - "traefik.http.routers.mailpit.middlewares=security-headers@file,compress@file"
       - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
 
 volumes:
