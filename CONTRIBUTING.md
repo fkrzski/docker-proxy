@@ -219,7 +219,6 @@ By contributing, you agree your contributions will be licensed under the [MIT Li
 **Resources:**
 - 📖 [README.md](README.md) - Project documentation
 - 📖 [Integration Guide](docs/INTEGRATION_GUIDE.md) - Integration examples
-- 🐛 [GitHub Issues](../../issues) - Bug reports and features
-- 💬 [GitHub Discussions](../../discussions) - Questions and help
+- 🐛 [GitHub Issues](https://github.com/fkrzski/docker-proxy/issues) - Bug reports and features
 
 **Thank you for contributing! 🎉**
