@@ -313,6 +313,12 @@ Example test structure:
 }
 ```
 
+## Contributing
+
+📖 **For guidelines on contributing to this project, including code style, testing requirements, and pull request process, see the [Contributing Guide](CONTRIBUTING.md).**
+
+We welcome contributions! Whether you're fixing bugs, adding features, improving documentation, or expanding platform support, please review the contributing guide before submitting your changes.
+
 ## Uninstallation
 
 To remove the proxy and clean up system changes:
