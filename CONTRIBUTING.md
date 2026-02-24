@@ -394,7 +394,7 @@ Run the following command to start the proxy:
 See the [Integration Guide](docs/INTEGRATION_GUIDE.md) for examples.
 
 # Good - Use relative paths for internal links
-[README.md](../README.md)
+[README.md](README.md)
 
 # Bad - Non-descriptive links
 Click [here](docs/INTEGRATION_GUIDE.md) for more info.
