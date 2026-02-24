@@ -193,6 +193,10 @@ TRAEFIK_ACCESS_LOG_ENABLED=true
 - ✅ Built-in Docker tooling for log access
 - ✅ Optional detailed request tracing for debugging
 
+## Response Compression
+
+Traefik automatically compresses HTTP responses using gzip and Brotli encoding for all proxied services. This is enabled by default and requires no additional configuration. Clients that send an `Accept-Encoding` header will receive compressed responses, reducing bandwidth usage and improving load times.
+
 ## Testing
 
 The project includes a comprehensive test suite for the `setup.sh` script to ensure reliability across different platforms and configurations.
