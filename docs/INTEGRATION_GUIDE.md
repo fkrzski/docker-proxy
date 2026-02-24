@@ -5230,9 +5230,12 @@ pre-configured security headers middleware to protect against common web vulnera
 
 #### Security Headers Middleware
 
-The proxy includes a **security headers middleware** (`security-headers`) that automatically applies essential security
-headers to HTTP responses. These headers protect against common attacks like clickjacking, MIME-type sniffing, and
-protocol downgrade attacks.
+The proxy includes two **security headers middlewares**:
+
+- **`strict-headers`** — full CSP without `unsafe-inline`; use this for your own services
+- **`relaxed-headers`** — relaxed CSP with `unsafe-inline` allowed; used internally by the Traefik dashboard which requires inline scripts and styles
+
+Both apply the same security headers (HSTS, X-Frame-Options, etc.) and differ only in the `Content-Security-Policy` directive.
 
 **Included Headers:**
 
@@ -5259,8 +5262,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`app.docker.localhost`)"
       - "traefik.http.routers.app.tls=true"
-      # Apply security headers middleware
-      - "traefik.http.routers.app.middlewares=security-headers@file"
+      # Apply strict security headers middleware
+      - "traefik.http.routers.app.middlewares=strict-headers@file"
 
 networks:
   traefik-proxy:
@@ -5270,9 +5273,10 @@ networks:
 **Key Points:**
 
 - The `@file` suffix tells Traefik to use middleware defined in the dynamic configuration file (`config/dynamic.yml`)
-- Security headers are applied automatically to the Traefik dashboard
+- The Traefik dashboard uses `relaxed-headers@file` (allows `unsafe-inline` required by its Vue.js frontend)
+- Use `strict-headers@file` for your own services — it enforces a strict CSP without `unsafe-inline`
 - You can chain multiple middlewares by separating them with commas:
-  `middlewares=security-headers@file,other-middleware`
+  `middlewares=strict-headers@file,other-middleware`
 - The CSP includes `object-src 'none'` (prevents plugin embedding like Flash) and `base-uri 'self'` (prevents base URL hijacking attacks)
 
 **Verification:**
@@ -5333,7 +5337,7 @@ networks:
 
 3. **Combine security headers with other middleware:**
    ```yaml
-   - "traefik.http.routers.app.middlewares=security-headers@file,compress,ratelimit"
+   - "traefik.http.routers.app.middlewares=strict-headers@file,compress,ratelimit"
    ```
 
 **For More Information:**
