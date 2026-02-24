@@ -17,5 +17,3 @@ http:
           X-XSS-Protection: "0"
           Strict-Transport-Security: "max-age=31536000; includeSubDomains"
           Content-Security-Policy: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
-    compress:
-      compress: {}
