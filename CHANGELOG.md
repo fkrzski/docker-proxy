@@ -1,3 +1,38 @@
+## [1.2.0] - 2026-02-25
+
+### ✨ Added
+- New `strict-headers` and `relaxed-headers` middleware for enhanced security configuration flexibility
+- PostgreSQL service with integrated pgAdmin interface for database management
+- Mailpit service for email testing and development workflows with HTTPS support
+- Automated dependency management via Dependabot for docker-compose and GitHub Actions
+- CONTRIBUTING.md guidelines with complete contribution procedures and validation
+- Comprehensive PostgreSQL and MySQL documentation guides (docs/POSTGRESQL.md, docs/MYSQL.md)
+
+### ⚡ Changed
+- Upgraded Docker image versions to pinned, stable releases for Traefik, MySQL, PostgreSQL, phpMyAdmin, and pgAdmin
+- Removed deprecated MySQL authentication plugin (mysql_native_password) for improved security
+- Applied security headers middleware across all services with enhanced Content Security Policy directives
+- Parallelize CI test execution using BATS --jobs capability for faster testing
+- Refactored certificate permission handling in setup.sh with explicit chmod rules for different file types
+- Updated INTEGRATION_GUIDE.md with consistent formatting and comprehensive framework configuration examples
+
+### 🐛 Fixed
+- Enhanced Content Security Policy with object-src and base-uri directives
+- Removed unsafe-inline from security headers for stricter enforcement across all services
+- Corrected pgAdmin default credentials to use valid email format
+- Fixed pgAdmin healthcheck mechanism to use wget instead of curl
+- Corrected MySQL backup documentation to properly reference `mysqldump` command
+- Updated GitHub Issues link in CONTRIBUTING.md to use absolute URL
+- Enforce certificate file permissions on every setup.sh execution
+- Restored and corrected Mailpit integration guide with HTTPS configuration and agent examples
+
+### 📚 Documentation
+- Updated README with PostgreSQL section including environment variable documentation
+- Clarified PostgreSQL superuser configuration and default credentials
+- Improved pgAdmin healthcheck and volume configuration documentation
+- Enhanced MySQL documentation with security best practices and `MYSQL_PWD` usage
+- Added Mailpit configuration examples for popular frameworks in integration guide
+
 ## [1.1.0] - 2026-02-14
 
 ### 🚀 Added
