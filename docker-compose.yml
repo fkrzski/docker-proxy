@@ -49,7 +49,7 @@ services:
       - "traefik.http.routers.dashboard.middlewares=relaxed-headers@file"
 
   redis:
-    image: redis:8.6.1-alpine
+    image: redis:8.6.2-alpine
     container_name: redis
     restart: unless-stopped
     profiles:
@@ -163,7 +163,7 @@ services:
       - "traefik.http.routers.pgadmin.middlewares=relaxed-headers@file"
 
   mailpit:
-    image: axllent/mailpit:v1.29.3
+    image: axllent/mailpit:v1.29.5
     container_name: mailpit
     restart: unless-stopped
     security_opt:
