@@ -127,6 +127,24 @@ COMPOSE_PROFILES=
 
 - **Superuser:** The user is `postgres` (configurable via `POSTGRES_USER`). The password is set by `POSTGRES_PASSWORD` in `.env` (the example file defaults to `postgres`).
 
+### Custom Domains
+
+📖 **For comprehensive custom domain configuration including DNS setup, certificate generation, and platform-specific guides, see the [Custom Domains Documentation](docs/CUSTOM_DOMAINS.md).**
+
+By default, the proxy uses `*.docker.localhost` domains which work out-of-the-box on most systems. However, you can configure custom top-level domains (TLDs) to:
+
+- Match your production environment (e.g., `*.mycompany.local`)
+- Follow organizational standards (e.g., `*.test`, `*.dev`)
+- Provide clearer service naming across multiple projects
+- Use reserved testing TLDs (`.test` is recommended per [RFC 6761](https://tools.ietf.org/html/rfc6761))
+
+**Key Features:**
+- ✅ Support for any custom TLD (`.local`, `.test`, `.dev`, etc.)
+- ✅ Wildcard domain support with proper DNS configuration
+- ✅ Automatic SSL certificate generation via `mkcert`
+- ✅ Multiple domain patterns in a single setup
+- ✅ Platform-specific configuration guides for Linux, macOS, and Windows
+
 ## Usage in Projects
 
 📖 **For comprehensive integration guides, framework-specific examples, and troubleshooting, see the [Integration Guide](docs/INTEGRATION_GUIDE.md).**
