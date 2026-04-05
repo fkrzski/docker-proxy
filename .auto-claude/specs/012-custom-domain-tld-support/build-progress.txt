@@ -1,0 +1,182 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: Local Docker Proxy with Traefik & HTTPS
+Feature: Custom Domain TLD Support
+Workspace: /home/fkrzski/PhpstormProjects/docker-proxy/.auto-claude/worktrees/tasks/012-custom-domain-tld-support
+Started: 2026-04-05
+
+Workflow Type: simple
+Rationale: Straightforward infrastructure enhancement to a single component (setup script).
+          Adds configuration flexibility without changing core architecture or requiring
+          multi-service coordination. Changes are localized to setup.sh, environment
+          variables, and documentation.
+
+Session 1 (Planner):
+- Created implementation_plan.json
+- Created project_index.json
+- Created context.json
+- Created init.sh
+- Phases: 1
+- Total subtasks: 5
+
+Phase Summary:
+- Phase 1 (Custom Domain Implementation): 5 subtasks, no dependencies
+  - Subtask 1-1: Add CUSTOM_DOMAINS to .env.example
+  - Subtask 1-2: Modify setup.sh for custom domain certificates
+  - Subtask 1-3: Create docs/CUSTOM_DOMAINS.md
+  - Subtask 1-4: Update README.md with custom domain info
+  - Subtask 1-5: End-to-end integration test
+
+Services Involved:
+- infrastructure: Setup script, certificate generation, documentation
+
+Files to Modify:
+- setup.sh (certificate generation logic - lines 318-328)
+- .env.example (add CUSTOM_DOMAINS variable)
+- README.md (add custom domain section)
+
+Files to Create:
+- docs/CUSTOM_DOMAINS.md (comprehensive guide)
+
+Key Patterns Identified:
+- Certificate generation: mkcert -key-file certs/local-key.pem -cert-file certs/local-cert.pem <domains>
+- Environment variables: Read from .env using ${VARIABLE_NAME} syntax
+- Logging: Use log_info/log_success/log_warn/log_error functions
+- Documentation: Comprehensive markdown with TOC, examples, troubleshooting
+
+Parallelism Analysis:
+- Max parallel phases: 1
+- Recommended workers: 1
+- Parallel groups: None (simple workflow, sequential execution)
+
+Verification Strategy:
+- Risk Level: low
+- Test Types: manual, command, e2e
+- Security Scanning: not required
+- Staging Deployment: not required
+
+Acceptance Criteria:
+✓ CUSTOM_DOMAINS environment variable documented in .env.example
+✓ setup.sh generates certificates including custom domains when variable is set
+✓ setup.sh maintains backward compatibility (works without CUSTOM_DOMAINS)
+✓ Comprehensive documentation created for /etc/hosts and dnsmasq setup
+✓ README.md updated with reference to custom domain feature
+✓ End-to-end test validates certificate generation with custom domains
+
+=== NEXT STEPS ===
+
+A coder agent will:
+1. Read implementation_plan.json for subtask list
+2. Execute subtasks sequentially (respecting status: pending)
+3. Verify each subtask before marking complete
+4. Create git commit after each completed subtask
+
+Manual Testing After Implementation:
+  1. Add to .env: CUSTOM_DOMAINS='*.local *.test'
+  2. Run: ./setup.sh
+  3. Verify: openssl x509 -in certs/local-cert.pem -text -noout | grep -E '(local|test)'
+  4. Verify backward compat: unset CUSTOM_DOMAINS && ./setup.sh
+
+Documentation to Review:
+  - docs/CUSTOM_DOMAINS.md - Should include:
+    * Overview of custom domain support
+    * /etc/hosts configuration for specific domains
+    * dnsmasq setup for wildcard TLDs
+    * Examples for *.local and *.test
+    * Platform-specific instructions (Linux/macOS/WSL2)
+    * Troubleshooting section
+
+=== END SESSION 1 ===
+
+Session 2 (Coder - subtask-1-1):
+- ✓ Read .env.example to understand existing pattern
+- ✓ Added CUSTOM_DOMAINS environment variable to .env.example
+- ✓ Added descriptive comment: "Custom Domains (comma-separated list for additional certificate generation)"
+- ✓ Added example: "*.local,*.test,myapp.dev"
+- ✓ Left default value empty (optional configuration)
+- ✓ Verification passed: grep -q 'CUSTOM_DOMAINS' .env.example && echo 'OK'
+- ✓ Committed: auto-claude: subtask-1-1 - Add CUSTOM_DOMAINS environment variable to .env.example
+- ✓ Updated implementation_plan.json: status changed from "pending" to "completed"
+
+=== END SESSION 2 ===
+
+Session 3 (Coder - subtask-1-2):
+- ✓ Read setup.sh to understand certificate generation pattern (lines 318-328)
+- ✓ Read setup.sh to understand .env handling pattern (lines 335-341)
+- ✓ Read .env.example to understand CUSTOM_DOMAINS format (comma-separated)
+- ✓ Modified setup.sh after .env file creation/verification section:
+  * Source .env file to read CUSTOM_DOMAINS variable
+  * Parse comma-separated domain list and trim whitespace
+  * Generate separate certificate files for each custom domain
+  * Use safe filenames: custom-{domain}-cert.pem and custom-{domain}-key.pem
+  * Check if certificates already exist before regenerating
+  * Set proper permissions (644 for cert, 600 for key)
+  * Added appropriate log messages for user feedback
+- ✓ Maintained backward compatibility: script works without CUSTOM_DOMAINS set
+- ✓ Verification passed: bash -n setup.sh && echo 'OK'
+- ✓ Committed: auto-claude: subtask-1-2 - Modify setup.sh to read CUSTOM_DOMAINS and generate certificates for custom domains
+- ✓ Updated implementation_plan.json: status changed from "pending" to "completed"
+
+Implementation Notes:
+- Each custom domain gets its own certificate file pair for flexibility
+- Wildcards and special characters in domain names are sanitized for filenames
+- Certificate generation is idempotent (skips if files already exist)
+- Follows existing code patterns: logging functions, error handling, permissions
+
+=== END SESSION 3 ===
+Session 4 (Coder - subtask-1-4):
+- ✓ Read docs/CUSTOM_DOMAINS.md to understand the custom domains feature
+- ✓ Read README.md to find appropriate section for custom domains documentation
+- ✓ Added new "Custom Domains" subsection to Configuration section
+- ✓ Followed existing pattern from database configuration sections (MySQL, PostgreSQL)
+- ✓ Included documentation link using 📖 emoji pattern
+- ✓ Added overview of custom domain benefits and use cases
+- ✓ Listed key features with ✅ checkmarks
+- ✓ Placed section between database configuration and usage in projects
+- ✓ Manual verification: README.md mentions custom domains and links to docs/CUSTOM_DOMAINS.md
+- ✓ Committed: auto-claude: subtask-1-4 - Update README.md with custom domain usage information
+- ✓ Updated implementation_plan.json: status changed from "pending" to "completed"
+
+Implementation Notes:
+- Maintains consistency with existing README.md structure
+- Uses same documentation reference pattern as database sections
+- Positioned logically in Configuration section
+- Provides useful overview without duplicating detailed docs
+
+=== END SESSION 4 ===
+
+Session 5 (Coder - subtask-1-5):
+- ✓ Read implementation plan and spec to understand integration test requirements
+- ✓ Discovered implementation issue: setup.sh was creating separate certificate files for each custom domain
+- ✓ Identified mismatch: Traefik config uses only local-cert.pem, not separate files
+- ✓ Fixed setup.sh to generate single certificate with all domains (default + custom)
+- ✓ Updated certificate generation logic:
+  * Moved .env configuration reading before certificate generation
+  * Build combined domain list (defaults + custom domains)
+  * Generate single certificate with all domains using mkcert
+  * Maintains backward compatibility when CUSTOM_DOMAINS is empty
+- ✓ Verification Tests Passed:
+  * Test 1: CUSTOM_DOMAINS='*.local,*.test' - Certificate generated with all domains ✓
+  * Test 2: CUSTOM_DOMAINS='' (empty) - Certificate generated with defaults only ✓
+  * Test 3: Final E2E - Custom domains detected and included in certificate ✓
+- ✓ Confirmed certificate contents from mkcert output:
+  * Default domains: localhost, *.docker.localhost, 127.0.0.1, ::1
+  * Custom domains: *.local, *.test
+  * Single certificate file: certs/local-cert.pem
+- ✓ Backward compatibility verified: Works without CUSTOM_DOMAINS set
+
+Implementation Fix Notes:
+- Previous implementation (subtask-1-2) created separate certificate files (custom-*-cert.pem)
+- This was incorrect: Traefik only uses one certificate (local-cert.pem)
+- Fixed to match documentation and Traefik configuration
+- Now generates unified certificate with all domains in SAN (Subject Alternative Names)
+
+Integration Test Results:
+✅ Custom domain certificate generation works end-to-end
+✅ Default domains still included (docker.localhost)
+✅ Backward compatibility maintained
+✅ Single certificate file approach matches Traefik config
+✅ Documentation aligned with implementation
+
+=== END SESSION 5 ===
+

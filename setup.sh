@@ -314,24 +314,7 @@ else
     log_info "Docker network 'traefik-proxy' already exists."
 fi
 
-# 4. Generate certificates
-mkdir -p certs
-if [ ! -f certs/local-cert.pem ] || [ ! -f certs/local-key.pem ];
-    then
-    log_info "Generating SSL certificates for localhost domain..."
-    mkcert -key-file certs/local-key.pem \
-      -cert-file certs/local-cert.pem \
-      "localhost" "*.docker.localhost" "127.0.0.1" "::1"
-    log_success "Certificates generated in ./certs"
-else
-    log_info "Certificates already exist. Skipping generation."
-fi
-
-# Set permissions (always enforce correct permissions regardless of certificate creation state)
-chmod 644 certs/local-cert.pem
-chmod 600 certs/local-key.pem
-
-# 5. Configure Environment
+# 4. Configure Environment
 if [ ! -f .env ]; then
     log_info "Creating .env configuration file from template..."
     cp .env.example .env
@@ -340,60 +323,46 @@ else
     log_info ".env configuration file already exists."
 fi
 
-# Read CUSTOM_DOMAINS from .env file
+# 5. Generate certificates with custom domains
+mkdir -p certs
+
+# Build domain list starting with defaults
+CERT_DOMAINS=("localhost" "*.docker.localhost" "127.0.0.1" "::1")
+
+# Read CUSTOM_DOMAINS from .env file and add to certificate domains
 if [ -f .env ]; then
-    # Source .env to read CUSTOM_DOMAINS
     source .env
 
-    # Check if CUSTOM_DOMAINS is set and not empty
     if [ -n "$CUSTOM_DOMAINS" ]; then
         log_info "Custom domains detected: $CUSTOM_DOMAINS"
 
         # Convert comma-separated list to array
         IFS=',' read -ra DOMAINS_ARRAY <<< "$CUSTOM_DOMAINS"
 
-        # Trim whitespace from each domain
-        CUSTOM_DOMAINS_TRIMMED=()
+        # Trim whitespace and add to certificate domains
         for domain in "${DOMAINS_ARRAY[@]}"; do
-            # Remove leading and trailing whitespace
             domain=$(echo "$domain" | xargs)
             if [ -n "$domain" ]; then
-                CUSTOM_DOMAINS_TRIMMED+=("$domain")
+                CERT_DOMAINS+=("$domain")
             fi
         done
-
-        # Generate certificates for custom domains if any exist
-        if [ ${#CUSTOM_DOMAINS_TRIMMED[@]} -gt 0 ]; then
-            log_info "Generating certificates for custom domains..."
-
-            # Check if custom domain certificates already exist
-            NEEDS_GENERATION=false
-            for domain in "${CUSTOM_DOMAINS_TRIMMED[@]}"; do
-                # Create a safe filename from domain (replace * and . with -)
-                SAFE_DOMAIN=$(echo "$domain" | sed 's/[*.]/-/g')
-                if [ ! -f "certs/custom-${SAFE_DOMAIN}-cert.pem" ] || [ ! -f "certs/custom-${SAFE_DOMAIN}-key.pem" ]; then
-                    NEEDS_GENERATION=true
-                    break
-                fi
-            done
-
-            if [ "$NEEDS_GENERATION" = true ]; then
-                for domain in "${CUSTOM_DOMAINS_TRIMMED[@]}"; do
-                    SAFE_DOMAIN=$(echo "$domain" | sed 's/[*.]/-/g')
-                    log_info "Generating certificate for: $domain"
-                    mkcert -key-file "certs/custom-${SAFE_DOMAIN}-key.pem" \
-                        -cert-file "certs/custom-${SAFE_DOMAIN}-cert.pem" \
-                        "$domain"
-                    chmod 644 "certs/custom-${SAFE_DOMAIN}-cert.pem"
-                    chmod 600 "certs/custom-${SAFE_DOMAIN}-key.pem"
-                done
-                log_success "Custom domain certificates generated."
-            else
-                log_info "Custom domain certificates already exist. Skipping generation."
-            fi
-        fi
     fi
 fi
+
+# Generate certificate if it doesn't exist
+if [ ! -f certs/local-cert.pem ] || [ ! -f certs/local-key.pem ]; then
+    log_info "Generating SSL certificates for domains: ${CERT_DOMAINS[*]}"
+    mkcert -key-file certs/local-key.pem \
+      -cert-file certs/local-cert.pem \
+      "${CERT_DOMAINS[@]}"
+    log_success "Certificates generated in ./certs"
+else
+    log_info "Certificates already exist. Skipping generation."
+fi
+
+# Set permissions (always enforce correct permissions regardless of certificate creation state)
+chmod 644 certs/local-cert.pem
+chmod 600 certs/local-key.pem
 
 # 6. Start Docker Compose
 log_info "Starting Traefik proxy container..."
