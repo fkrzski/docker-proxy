@@ -340,6 +340,61 @@ else
     log_info ".env configuration file already exists."
 fi
 
+# Read CUSTOM_DOMAINS from .env file
+if [ -f .env ]; then
+    # Source .env to read CUSTOM_DOMAINS
+    source .env
+
+    # Check if CUSTOM_DOMAINS is set and not empty
+    if [ -n "$CUSTOM_DOMAINS" ]; then
+        log_info "Custom domains detected: $CUSTOM_DOMAINS"
+
+        # Convert comma-separated list to array
+        IFS=',' read -ra DOMAINS_ARRAY <<< "$CUSTOM_DOMAINS"
+
+        # Trim whitespace from each domain
+        CUSTOM_DOMAINS_TRIMMED=()
+        for domain in "${DOMAINS_ARRAY[@]}"; do
+            # Remove leading and trailing whitespace
+            domain=$(echo "$domain" | xargs)
+            if [ -n "$domain" ]; then
+                CUSTOM_DOMAINS_TRIMMED+=("$domain")
+            fi
+        done
+
+        # Generate certificates for custom domains if any exist
+        if [ ${#CUSTOM_DOMAINS_TRIMMED[@]} -gt 0 ]; then
+            log_info "Generating certificates for custom domains..."
+
+            # Check if custom domain certificates already exist
+            NEEDS_GENERATION=false
+            for domain in "${CUSTOM_DOMAINS_TRIMMED[@]}"; do
+                # Create a safe filename from domain (replace * and . with -)
+                SAFE_DOMAIN=$(echo "$domain" | sed 's/[*.]/-/g')
+                if [ ! -f "certs/custom-${SAFE_DOMAIN}-cert.pem" ] || [ ! -f "certs/custom-${SAFE_DOMAIN}-key.pem" ]; then
+                    NEEDS_GENERATION=true
+                    break
+                fi
+            done
+
+            if [ "$NEEDS_GENERATION" = true ]; then
+                for domain in "${CUSTOM_DOMAINS_TRIMMED[@]}"; do
+                    SAFE_DOMAIN=$(echo "$domain" | sed 's/[*.]/-/g')
+                    log_info "Generating certificate for: $domain"
+                    mkcert -key-file "certs/custom-${SAFE_DOMAIN}-key.pem" \
+                        -cert-file "certs/custom-${SAFE_DOMAIN}-cert.pem" \
+                        "$domain"
+                    chmod 644 "certs/custom-${SAFE_DOMAIN}-cert.pem"
+                    chmod 600 "certs/custom-${SAFE_DOMAIN}-key.pem"
+                done
+                log_success "Custom domain certificates generated."
+            else
+                log_info "Custom domain certificates already exist. Skipping generation."
+            fi
+        fi
+    fi
+fi
+
 # 6. Start Docker Compose
 log_info "Starting Traefik proxy container..."
 docker compose up -d
