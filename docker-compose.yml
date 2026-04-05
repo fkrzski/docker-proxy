@@ -134,7 +134,7 @@ services:
       - "traefik.http.routers.pma.middlewares=strict-headers@file"
 
   pgadmin:
-    image: dpage/pgadmin4:9.13.0
+    image: dpage/pgadmin4:9.14.0
     container_name: pgadmin
     restart: unless-stopped
     profiles:
@@ -163,7 +163,7 @@ services:
       - "traefik.http.routers.pgadmin.middlewares=relaxed-headers@file"
 
   mailpit:
-    image: axllent/mailpit:v1.29.5
+    image: axllent/mailpit:v1.29.6
     container_name: mailpit
     restart: unless-stopped
     security_opt:
