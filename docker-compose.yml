@@ -163,7 +163,7 @@ services:
       - "traefik.http.routers.pgadmin.middlewares=relaxed-headers@file"
 
   mailpit:
-    image: axllent/mailpit:v1.29.6
+    image: axllent/mailpit:v1.29.7
     container_name: mailpit
     restart: unless-stopped
     security_opt:
