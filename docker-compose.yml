@@ -65,7 +65,7 @@ services:
       start_period: 40s
 
   mysql:
-    image: mysql:9.6.0
+    image: mysql:9.7.0
     container_name: mysql
     restart: unless-stopped
     profiles:
@@ -163,7 +163,7 @@ services:
       - "traefik.http.routers.pgadmin.middlewares=relaxed-headers@file"
 
   mailpit:
-    image: axllent/mailpit:v1.29.6
+    image: axllent/mailpit:v1.29.7
     container_name: mailpit
     restart: unless-stopped
     security_opt:
